@@ -206,14 +206,20 @@ export function supportScore(claim: string, evidence: string): number {
     return 0;
   }
 
+  const normalizedClaim = normalizeTitle(stripCitationNoise(claim));
   const evidenceText = normalizeTitle(evidence);
-  const directHits = claimTokens.filter((token) =>
-    evidenceText.includes(token)
-  ).length;
-  const containment = directHits / claimTokens.length;
-  const jaccard = jaccardSimilarity(claim, evidence);
+  if (normalizedClaim && evidenceText.includes(normalizedClaim)) {
+    return 1;
+  }
 
-  return round(Math.max(containment * 0.82, jaccard));
+  const evidenceTokens = new Set(tokenize(evidence));
+  const directHits = claimTokens.filter((token) => evidenceTokens.has(token)).length;
+  const unigramCoverage = directHits / claimTokens.length;
+  const phraseCoverage = ngramCoverage(claimTokens, tokenize(evidence), 2);
+  const jaccard = jaccardSimilarity(claim, evidence);
+  const weightedCoverage = unigramCoverage * 0.45 + phraseCoverage * 0.45;
+
+  return round(Math.max(weightedCoverage, jaccard));
 }
 
 function contradicts(claim: string, evidence: string): boolean {
@@ -239,4 +245,29 @@ function clampConfidence(value: number): number {
     return 0;
   }
   return round(Math.min(1, Math.max(0, value)));
+}
+
+function ngramCoverage(
+  claimTokens: string[],
+  evidenceTokens: string[],
+  size: number
+): number {
+  const claimNgrams = ngrams(claimTokens, size);
+  if (claimNgrams.length === 0) {
+    return 0;
+  }
+  const evidenceNgrams = new Set(ngrams(evidenceTokens, size));
+  const hits = claimNgrams.filter((ngram) => evidenceNgrams.has(ngram)).length;
+  return hits / claimNgrams.length;
+}
+
+function ngrams(tokens: string[], size: number): string[] {
+  if (tokens.length < size) {
+    return [];
+  }
+  const results: string[] = [];
+  for (let index = 0; index <= tokens.length - size; index += 1) {
+    results.push(tokens.slice(index, index + size).join(' '));
+  }
+  return results;
 }

@@ -62,6 +62,16 @@ describe('verifyClaim', () => {
     expect(result.verdict).toBe('unverifiable');
   });
 
+  it('does not overstate generic keyword overlap as support', () => {
+    const result = verifyClaim(
+      claim('Citation audits improve user trust'),
+      [reference],
+      [span('Citation audits can be expensive to run on long manuscripts.')]
+    );
+
+    expect(result.verdict).toBe('unverifiable');
+  });
+
   it('rejects classifier proof that does not cite retrieved evidence spans', async () => {
     const [result] = await verifyClaimsWithClassifier(
       [claim('Neural citation audits improve reference accuracy')],
