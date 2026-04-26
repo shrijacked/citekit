@@ -3,6 +3,7 @@ import type {
   CitationAuditInput,
   CitationAuditReport,
   ClaimVerification,
+  EvidenceSpan,
   FormattingFinding,
   MetadataProvider,
   ResolvedReference
@@ -122,6 +123,7 @@ function referenceFindings(references: ResolvedReference[]): AuditFinding[] {
           message: mismatch.message,
           proof: {
             resolverSource: reference.source,
+            field: mismatch.field,
             expected: mismatch.expected,
             actual: mismatch.actual
           },
@@ -158,25 +160,34 @@ function referenceFindings(references: ResolvedReference[]): AuditFinding[] {
 function claimFindings(claims: ClaimVerification[]): AuditFinding[] {
   return claims
     .filter((claim) => claim.verdict !== 'supported')
-    .map((claim, index) => ({
-      id: `C${index + 1}`,
-      severity:
-        claim.verdict === 'weak_support' ? ('warning' as const) : ('error' as const),
-      category: 'claim' as const,
-      verdict: claim.verdict,
-      claimId: claim.claim.id,
-      message: claim.message,
-      proof: {
-        evidenceSpanIds: [
-          ...claim.supportingSpans.map((span) => span.id),
-          ...claim.contradictedBy.map((span) => span.id)
-        ]
-      },
-      suggestedFix:
-        claim.verdict === 'weak_support'
-          ? 'Tighten the claim or cite a more direct source.'
-          : 'Provide source text, change the claim, or replace the citation.'
-    }));
+    .map((claim, index) => {
+      const spans = proofSpans(claim);
+      return {
+        id: `C${index + 1}`,
+        severity:
+          claim.verdict === 'weak_support'
+            ? ('warning' as const)
+            : ('error' as const),
+        category: 'claim' as const,
+        verdict: claim.verdict,
+        claimId: claim.claim.id,
+        message: claim.message,
+        proof: {
+          evidenceSpanIds: spans.map((span) => span.id),
+          evidenceQuotes: spans.map((span) => ({
+            id: span.id,
+            source: span.source,
+            locator: span.locator,
+            path: span.path,
+            text: span.text
+          }))
+        },
+        suggestedFix:
+          claim.verdict === 'weak_support'
+            ? 'Tighten the claim or cite a more direct source.'
+            : 'Provide source text, change the claim, or replace the citation.'
+      };
+    });
 }
 
 function formattingFindings(formatting: FormattingFinding[]): AuditFinding[] {
@@ -191,8 +202,13 @@ function formattingFindings(formatting: FormattingFinding[]): AuditFinding[] {
       referenceId: finding.referenceId,
       message: finding.message,
       proof: {
+        field: finding.rule,
         actual: finding.rule
       },
       suggestedFix: finding.suggestedFix
     }));
+}
+
+function proofSpans(claim: ClaimVerification): EvidenceSpan[] {
+  return [...claim.supportingSpans, ...claim.contradictedBy];
 }

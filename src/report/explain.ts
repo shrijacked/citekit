@@ -13,15 +13,31 @@ export function explainClaim(
     (finding) => finding.claimId === claimId
   );
   const spans = [...claim.supportingSpans, ...claim.contradictedBy];
+  const references = claim.claim.citationKeys.map((key) =>
+    report.references.find((reference) => reference.input.id === key)
+  );
 
   return [
     `${claim.claim.id}: ${claim.verdict} (${claim.confidence})`,
     claim.claim.claim,
+    `Source: ${claim.claim.source.path}:${claim.claim.source.line}`,
     '',
     claim.message,
     '',
     'Citations:',
-    claim.claim.citationKeys.map((key) => `- ${key}`).join('\n') || '- none',
+    references
+      .map((reference, index) => {
+        const key = claim.claim.citationKeys[index];
+        if (!reference) {
+          return `- ${key}: missing from bibliography`;
+        }
+        return `- ${key}: ${reference.verdict}${
+          reference.source ? ` via ${reference.source}` : ''
+        }\n  ${reference.input.title}${
+          reference.input.doi ? `\n  DOI: ${reference.input.doi}` : ''
+        }`;
+      })
+      .join('\n') || '- none',
     '',
     'Evidence:',
     spans.length > 0
@@ -36,7 +52,19 @@ export function explainClaim(
     'Findings:',
     findings.length > 0
       ? findings
-          .map((finding) => `- ${finding.severity}: ${finding.message}`)
+          .map((finding) => {
+            const quoteText = finding.proof?.evidenceQuotes
+              ?.map(
+                (quote) =>
+                  `\n  ${quote.id} [${quote.source}${
+                    quote.locator ? `, ${quote.locator}` : ''
+                  }]: ${quote.text}`
+              )
+              .join('');
+            return `- ${finding.severity}: ${finding.message}${
+              finding.suggestedFix ? `\n  Fix: ${finding.suggestedFix}` : ''
+            }${quoteText ?? ''}`;
+          })
           .join('\n')
       : '- no findings'
   ].join('\n');

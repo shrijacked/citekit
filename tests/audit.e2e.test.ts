@@ -30,5 +30,19 @@ describe('runCitationAudit', () => {
     expect(report.summary.claims.unverifiable).toBe(1);
     expect(report.summary.exitCode).toBe(1);
     expect(report.findings.some((finding) => finding.proof)).toBe(true);
+    expect(
+      report.findings.find((finding) => finding.claimId === 'C2')?.proof
+        ?.evidenceQuotes?.[0]
+    ).toMatchObject({
+      source: 'user_file',
+      text: expect.stringContaining('Large language models do not always cite')
+    });
+    expect(
+      report.findings.find((finding) => finding.referenceId === 'doe2021')?.proof
+    ).toMatchObject({
+      field: 'title',
+      expected: 'Large Language Models Always Cite Accurately',
+      actual: 'Large Language Models Often Cite Inaccurately'
+    });
   });
 });

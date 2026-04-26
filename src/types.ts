@@ -150,6 +150,14 @@ export type AuditFinding = {
   proof?: {
     resolverSource?: ResolverSource;
     evidenceSpanIds?: string[];
+    evidenceQuotes?: Array<{
+      id: string;
+      source: EvidenceSpan['source'];
+      locator?: string;
+      path?: string;
+      text: string;
+    }>;
+    field?: MetadataMismatch['field'] | keyof VenueRules | 'style';
     expected?: unknown;
     actual?: unknown;
   };
