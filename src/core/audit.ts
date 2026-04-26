@@ -167,10 +167,10 @@ function referenceFindings(references: ResolvedReference[]): AuditFinding[] {
 function claimFindings(claims: ClaimVerification[]): AuditFinding[] {
   return claims
     .filter((claim) => claim.verdict !== 'supported')
-    .map((claim, index) => {
+    .map((claim) => {
       const spans = proofSpans(claim);
       return {
-        id: `C${index + 1}`,
+        id: claim.claim.id,
         severity:
           claim.verdict === 'weak_support'
             ? ('warning' as const)

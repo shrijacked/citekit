@@ -44,6 +44,9 @@ describe('runCitationAudit', () => {
       expected: 'Large Language Models Always Cite Accurately',
       actual: 'Large Language Models Often Cite Inaccurately'
     });
+    expect(report.findings.find((finding) => finding.claimId === 'C2')?.id).toBe(
+      'C2'
+    );
   });
 
   it('uses opt-in remote evidence when resolver metadata exposes content URLs', async () => {
