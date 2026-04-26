@@ -39,6 +39,10 @@ program
     '--metadata-cache <path>',
     'Cache metadata resolver responses in a JSON file'
   )
+  .option(
+    '--fetch-remote-evidence',
+    'Fetch remote evidence URLs exposed by resolved metadata'
+  )
   .option('--offline', 'Disable live metadata providers')
   .action(
     async (
@@ -52,6 +56,7 @@ program
         out?: string;
         metadataFixture?: string;
         metadataCache?: string;
+        fetchRemoteEvidence?: boolean;
         offline?: boolean;
       }
     ) => {
@@ -63,7 +68,8 @@ program
         venue: options.venue,
         evidencePaths: options.evidence ?? [],
         metadataProviders,
-        metadataCachePath: options.metadataCache
+        metadataCachePath: options.metadataCache,
+        fetchRemoteEvidence: options.fetchRemoteEvidence
       });
 
       const rendered =

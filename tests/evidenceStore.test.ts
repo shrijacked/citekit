@@ -2,8 +2,11 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadEvidenceStore } from '../src/core/evidenceStore.js';
-import type { ReferenceRecord } from '../src/types.js';
+import {
+  loadEvidenceStore,
+  loadRemoteEvidenceFromResolved
+} from '../src/core/evidenceStore.js';
+import type { ReferenceRecord, ResolvedReference } from '../src/types.js';
 
 const reference: ReferenceRecord = {
   id: 'smith2020',
@@ -40,5 +43,47 @@ describe('loadEvidenceStore', () => {
       'Neural Citation Audits Improve Reference Accuracy'
     );
     expect(spans.at(-1)?.text).toContain('Unrelated implementation notes');
+  });
+
+  it('loads remote evidence from resolved OpenAlex content URLs', async () => {
+    const resolved: ResolvedReference = {
+      input: reference,
+      resolved: {
+        ...reference,
+        raw: {
+          content_url: 'https://content.openalex.org/works/W1'
+        }
+      },
+      verdict: 'verified',
+      source: 'openalex',
+      confidence: 1,
+      mismatches: [],
+      evidence: []
+    };
+    const fetchImpl = async () =>
+      new Response(
+        'Neural citation audits improve reference accuracy by checking every cited claim against source text.',
+        {
+          status: 200,
+          headers: {
+            'content-type': 'text/plain'
+          }
+        }
+      );
+
+    const spans = await loadRemoteEvidenceFromResolved(
+      [resolved],
+      fetchImpl as typeof fetch
+    );
+
+    expect(spans).toEqual([
+      expect.objectContaining({
+        id: 'R1',
+        referenceId: 'smith2020',
+        source: 'openalex',
+        path: 'https://content.openalex.org/works/W1',
+        text: expect.stringContaining('Neural citation audits improve')
+      })
+    ]);
   });
 });

@@ -25,6 +25,8 @@ export type CitationAuditInput = {
   evidencePaths?: string[];
   metadataProviders?: MetadataProvider[];
   metadataCachePath?: string;
+  fetchRemoteEvidence?: boolean;
+  remoteEvidenceFetch?: typeof fetch;
   rulePacks?: VenueRulePack[];
   claimClassifier?: ClaimEvidenceClassifier;
 };
