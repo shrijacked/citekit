@@ -1,0 +1,10 @@
+id: nature
+label: Nature
+cslStyle: nature
+rules:
+  requireDoi: true
+  requireUrlWhenNoDoi: false
+  disallowUrlWhenDoiPresent: true
+  requireYear: true
+  referenceOrder: citation_order
+  maxAuthorsBeforeEtAl: 5

@@ -1,0 +1,10 @@
+id: acm-sigconf
+label: ACM SIGCONF
+cslStyle: acm-sig-proceedings
+rules:
+  requireDoi: true
+  requireUrlWhenNoDoi: true
+  disallowUrlWhenDoiPresent: false
+  requireYear: true
+  referenceOrder: alphabetical
+  maxAuthorsBeforeEtAl: 20

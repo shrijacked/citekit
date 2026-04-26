@@ -53,7 +53,7 @@ export type EvidenceSpan = {
   id: string;
   referenceId: string;
   text: string;
-  source: 'user_file' | 'openalex' | 'crossref' | 'semantic_scholar' | 'metadata';
+  source: 'user_file' | 'metadata' | ResolverSource;
   locator?: string;
   path?: string;
 };

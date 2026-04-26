@@ -1,0 +1,10 @@
+id: ieee
+label: IEEE
+cslStyle: ieee
+rules:
+  requireDoi: true
+  requireUrlWhenNoDoi: true
+  disallowUrlWhenDoiPresent: true
+  requireYear: true
+  referenceOrder: citation_order
+  maxAuthorsBeforeEtAl: 6
