@@ -25,6 +25,7 @@ pnpm dev -- check tests/fixtures/paper.md \
   --style ieee \
   --venue ieee \
   --evidence tests/fixtures/evidence \
+  --fetch-remote-evidence \
   --metadata-cache .citekit-cache/metadata.json \
   --metadata-fixture tests/fixtures/metadata.json
 ```
@@ -65,6 +66,8 @@ Useful options:
 - `--venue <venue>`: venue rule pack id from `venues/*.yaml`.
 - `--evidence <paths...>`: files or directories containing `.txt`, `.md`, `.tex`,
   `.xml`, `.tei`, or `.pdf` evidence.
+- `--fetch-remote-evidence`: opt-in fetch for remote content URLs exposed by
+  resolver metadata, such as OpenAlex `content_url` or open-access URLs.
 - `--metadata-fixture <path>`: deterministic resolver fixture for tests and offline CI.
 - `--metadata-cache <path>`: JSON cache for resolver responses, useful for live
   Crossref/OpenAlex/Semantic Scholar runs.
@@ -110,6 +113,7 @@ const report = await runCitationAudit({
   style: 'ieee',
   venue: 'ieee',
   evidencePaths: ['./evidence'],
+  fetchRemoteEvidence: true,
   metadataCachePath: '.citekit-cache/metadata.json',
   metadataProviders: [provider]
 });
@@ -133,6 +137,8 @@ CiteKit is strict by default.
 - A missing paper becomes `not_found`.
 - A claim with no available source text becomes `unverifiable`.
 - A claim only becomes `supported` when retrieved source text directly supports it.
+- Remote evidence fetching is off by default. When enabled, CiteKit only uses URLs
+  exposed by resolver metadata and still requires quoted retrieved spans in proof.
 - Optional AI classifiers can only classify retrieved evidence spans. If a classifier
   returns a span id that was not retrieved, CiteKit downgrades the claim to
   `unverifiable`.
@@ -216,6 +222,7 @@ The test suite covers:
 - metadata mismatch detection
 - supported, contradicted, and unverifiable claims
 - resolver caching
+- opt-in remote evidence loading from resolver content URLs
 - venue rule failures
 - offline CLI end-to-end reporting
 - proof-rich claim explanations

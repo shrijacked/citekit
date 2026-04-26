@@ -35,6 +35,9 @@ flowchart TD
   are deterministic and do not hit resolver APIs unnecessarily.
 - Evidence loading reads local evidence files, including PDFs through `pdf-parse`,
   and binds spans to bibliography ids.
+- Remote evidence loading is opt-in. When enabled, CiteKit fetches text/XML/HTML/PDF
+  content URLs exposed by resolved metadata, converts them into evidence spans, and
+  keeps URL locators in the proof object.
 - Claim verification only judges retrieved spans. It does not search the web during
   claim classification.
 - Formatting renders the bibliography and applies venue policy checks from YAML rule
