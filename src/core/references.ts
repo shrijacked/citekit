@@ -1,4 +1,4 @@
-import { extname } from 'node:path';
+import { basename, extname } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import type { ReferenceRecord } from '../types.js';
 import { normalizeDoi, normalizeWhitespace } from './text.js';
@@ -50,8 +50,12 @@ export async function loadReferences(
     return parseBibtex(text);
   }
 
+  if (ext === '.ris') {
+    return parseRis(text, basename(bibliographyPath, ext));
+  }
+
   throw new Error(
-    `Unsupported bibliography format "${ext}". Use .bib, .bibtex, or CSL .json.`
+    `Unsupported bibliography format "${ext}". Use .bib, .bibtex, .ris, or CSL .json.`
   );
 }
 
@@ -89,6 +93,51 @@ export function parseBibtex(input: string): ReferenceRecord[] {
   }
 
   return entries;
+}
+
+export function parseRis(input: string, fallbackPrefix = 'ris'): ReferenceRecord[] {
+  const records: ReferenceRecord[] = [];
+  let fields: Record<string, string[]> = {};
+
+  for (const rawLine of input.split(/\r?\n/)) {
+    const line = rawLine.trimEnd();
+    if (!line.trim()) {
+      continue;
+    }
+
+    const match = /^([A-Z0-9]{2})\s*-\s*(.*)$/.exec(line);
+    if (!match) {
+      const lastKey = Object.keys(fields).at(-1);
+      if (lastKey) {
+        const values = fields[lastKey];
+        values[values.length - 1] = `${values[values.length - 1]} ${line.trim()}`;
+      }
+      continue;
+    }
+
+    const [, tag, value] = match;
+    if (tag === 'TY') {
+      fields = { TY: [value.trim()] };
+      continue;
+    }
+
+    if (tag === 'ER') {
+      if (Object.keys(fields).length > 0) {
+        records.push(risFieldsToReference(fields, `${fallbackPrefix}-${records.length + 1}`));
+      }
+      fields = {};
+      continue;
+    }
+
+    fields[tag] ??= [];
+    fields[tag].push(value.trim());
+  }
+
+  if (Object.keys(fields).length > 0) {
+    records.push(risFieldsToReference(fields, `${fallbackPrefix}-${records.length + 1}`));
+  }
+
+  return records.filter((record) => record.title || record.doi);
 }
 
 export function referenceToCslItem(reference: ReferenceRecord): CslItem {
@@ -283,6 +332,58 @@ function parseYear(value?: string): number | undefined {
   }
   const match = /\d{4}/.exec(value);
   return match ? Number(match[0]) : undefined;
+}
+
+function risFieldsToReference(
+  fields: Record<string, string[]>,
+  fallbackId: string
+): ReferenceRecord {
+  const title = first(fields.TI, fields.T1, fields.CT, fields.BT) ?? '';
+  const doi = normalizeDoi(first(fields.DO));
+  const id = first(fields.ID) ?? doi ?? fallbackId;
+  const type = mapRisType(first(fields.TY));
+
+  return {
+    id,
+    type,
+    title: normalizeWhitespace(title),
+    authors: [...(fields.AU ?? []), ...(fields.A1 ?? [])]
+      .map(normalizeWhitespace)
+      .filter(Boolean),
+    year: parseYear(first(fields.PY, fields.Y1, fields.DA)),
+    venue: normalizeWhitespace(
+      first(fields.JO, fields.JF, fields.JA, fields.T2, fields.PB) ?? ''
+    ),
+    doi,
+    url: normalizeWhitespace(first(fields.UR, fields.L2) ?? ''),
+    raw: fields
+  };
+}
+
+function first(...values: Array<string[] | undefined>): string | undefined {
+  for (const value of values) {
+    const item = value?.find((candidate) => candidate.trim());
+    if (item) {
+      return item;
+    }
+  }
+  return undefined;
+}
+
+function mapRisType(type?: string): string | undefined {
+  const normalized = type?.toUpperCase();
+  const map: Record<string, string> = {
+    JOUR: 'article-journal',
+    JFULL: 'article-journal',
+    CONF: 'paper-conference',
+    CPAPER: 'paper-conference',
+    BOOK: 'book',
+    CHAP: 'chapter',
+    THES: 'thesis',
+    RPRT: 'report',
+    ELEC: 'webpage'
+  };
+  return normalized ? (map[normalized] ?? normalized.toLowerCase()) : undefined;
 }
 
 function formatCslName(name: CslName): string {
