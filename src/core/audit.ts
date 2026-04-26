@@ -17,6 +17,7 @@ import {
   metadataEvidenceFromResolved
 } from './evidenceStore.js';
 import { resolveReferences } from './metadataResolver.js';
+import { withMetadataCache } from './metadataCache.js';
 import { verifyClaimsWithClassifier } from './claimVerifier.js';
 import { checkFormatting, loadVenueRulePack } from './formatting.js';
 import { renderBibliography } from './renderBibliography.js';
@@ -26,7 +27,10 @@ export async function runCitationAudit(
 ): Promise<CitationAuditReport> {
   const claims = await extractClaimsFromFile(input.manuscriptPath);
   const references = await loadReferences(input.bibliographyPath);
-  const providers = input.metadataProviders ?? defaultMetadataProviders();
+  const providers = withMetadataCache(
+    input.metadataProviders ?? defaultMetadataProviders(),
+    input.metadataCachePath
+  );
   const rulePack = await loadVenueRulePack(input.venue, input.rulePacks);
   const style = input.style ?? rulePack?.cslStyle ?? 'ieee';
   const resolved = await resolveReferences(references, providers);

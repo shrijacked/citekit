@@ -24,6 +24,7 @@ export type CitationAuditInput = {
   venue?: string;
   evidencePaths?: string[];
   metadataProviders?: MetadataProvider[];
+  metadataCachePath?: string;
   rulePacks?: VenueRulePack[];
   claimClassifier?: ClaimEvidenceClassifier;
 };

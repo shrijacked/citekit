@@ -5,6 +5,7 @@ export * from './core/evidenceStore.js';
 export * from './core/extractClaims.js';
 export * from './core/formatting.js';
 export * from './core/metadataResolver.js';
+export * from './core/metadataCache.js';
 export * from './core/references.js';
 export * from './core/renderBibliography.js';
 export * from './core/styles.js';

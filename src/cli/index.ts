@@ -35,6 +35,10 @@ program
     '--metadata-fixture <path>',
     'Use a local metadata fixture JSON file instead of live providers'
   )
+  .option(
+    '--metadata-cache <path>',
+    'Cache metadata resolver responses in a JSON file'
+  )
   .option('--offline', 'Disable live metadata providers')
   .action(
     async (
@@ -47,6 +51,7 @@ program
         report: 'json' | 'html';
         out?: string;
         metadataFixture?: string;
+        metadataCache?: string;
         offline?: boolean;
       }
     ) => {
@@ -57,7 +62,8 @@ program
         style: options.style,
         venue: options.venue,
         evidencePaths: options.evidence ?? [],
-        metadataProviders
+        metadataProviders,
+        metadataCachePath: options.metadataCache
       });
 
       const rendered =
