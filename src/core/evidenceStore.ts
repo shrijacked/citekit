@@ -150,13 +150,42 @@ function chunkEvidence(
     .filter((paragraph) => paragraph.length > 30);
 
   const chunks = paragraphs.length > 0 ? paragraphs : [text.replace(/\s+/g, ' ')];
+  const windows = chunks.flatMap((chunk, paragraphIndex) =>
+    sentenceWindows(chunk).map((window, windowIndex) => ({
+      text: window,
+      locator: `paragraph ${paragraphIndex + 1}, sentence window ${
+        windowIndex + 1
+      }`
+    }))
+  );
 
-  return chunks.map((chunk, index) => ({
+  return windows.map((window, index) => ({
     id: `E${offset + index + 1}`,
     referenceId,
-    text: chunk.slice(0, 1800),
+    text: window.text.slice(0, 1800),
     source: 'user_file',
     path,
-    locator: `chunk ${index + 1}`
+    locator: window.locator
   }));
+}
+
+function sentenceWindows(text: string, windowSize = 2): string[] {
+  const sentences = splitSentences(text);
+  if (sentences.length <= windowSize) {
+    return [text];
+  }
+
+  const windows: string[] = [];
+  for (let index = 0; index < sentences.length; index += 1) {
+    windows.push(sentences.slice(index, index + windowSize).join(' '));
+  }
+
+  return windows;
+}
+
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
 }
