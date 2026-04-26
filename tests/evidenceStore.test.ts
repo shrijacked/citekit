@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   loadEvidenceStore,
   loadRemoteEvidenceFromResolved
@@ -85,5 +85,51 @@ describe('loadEvidenceStore', () => {
         text: expect.stringContaining('Neural citation audits improve')
       })
     ]);
+  });
+
+  it('loads remote evidence from resolved OpenAlex PDF URLs', async () => {
+    const resolved: ResolvedReference = {
+      input: reference,
+      resolved: {
+        ...reference,
+        raw: {
+          best_oa_location: {
+            pdf_url: 'https://openalex.org/pdfs/W1.pdf',
+            landing_page_url: 'https://openalex.org/works/W1'
+          }
+        }
+      },
+      verdict: 'verified',
+      source: 'openalex',
+      confidence: 1,
+      mismatches: [],
+      evidence: []
+    };
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        'Neural citation audits improve reference accuracy using open access PDFs.',
+        {
+          status: 200,
+          headers: {
+            'content-type': 'text/plain'
+          }
+        }
+      )
+    );
+
+    const spans = await loadRemoteEvidenceFromResolved(
+      [resolved],
+      fetchImpl as unknown as typeof fetch
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://openalex.org/pdfs/W1.pdf',
+      expect.any(Object)
+    );
+    expect(spans[0]).toMatchObject({
+      referenceId: 'smith2020',
+      source: 'openalex',
+      path: 'https://openalex.org/pdfs/W1.pdf'
+    });
   });
 });

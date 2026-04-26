@@ -39,6 +39,8 @@ flowchart TD
 - Remote evidence loading is opt-in. When enabled, CiteKit fetches text/XML/HTML/PDF
   content URLs exposed by resolved metadata, converts them into evidence spans, and
   keeps URL locators in the proof object.
+  OpenAlex `content_url`, `best_oa_location.pdf_url`, `primary_location.pdf_url`,
+  and `locations[].pdf_url` are preferred before landing-page URLs.
 - Claim verification only judges retrieved spans. It does not search the web during
   claim classification.
 - Optional classifier commands receive only the claim, cited references, and retrieved

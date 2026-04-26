@@ -69,7 +69,8 @@ Useful options:
 - `--evidence <paths...>`: files or directories containing `.txt`, `.md`, `.tex`,
   `.xml`, `.tei`, or `.pdf` evidence.
 - `--fetch-remote-evidence`: opt-in fetch for remote content URLs exposed by
-  resolver metadata, such as OpenAlex `content_url` or open-access URLs.
+  resolver metadata, such as OpenAlex `content_url`, OpenAlex open-access PDF URLs,
+  or open-access landing-page URLs.
 - `--metadata-fixture <path>`: deterministic resolver fixture for tests and offline CI.
 - `--metadata-cache <path>`: JSON cache for resolver responses, useful for live
   Crossref/OpenAlex/Semantic Scholar runs.
@@ -191,6 +192,7 @@ CiteKit is strict by default.
 - A claim only becomes `supported` when retrieved source text directly supports it.
 - Remote evidence fetching is off by default. When enabled, CiteKit only uses URLs
   exposed by resolver metadata and still requires quoted retrieved spans in proof.
+  Direct content and PDF URLs are preferred over landing pages when both are present.
 - Optional AI classifiers can only classify retrieved evidence spans. If a classifier
   returns an evidence-based verdict without retrieved span ids, CiteKit downgrades
   the claim to `unverifiable`.

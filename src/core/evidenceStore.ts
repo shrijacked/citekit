@@ -51,7 +51,8 @@ export async function loadRemoteEvidenceFromResolved(
     try {
       const response = await fetchImpl(url, {
         headers: {
-          Accept: 'text/plain, text/xml, application/xml, text/html;q=0.8, */*;q=0.1'
+          Accept:
+            'text/plain, text/xml, application/xml, application/pdf, text/html;q=0.8, */*;q=0.1'
         }
       });
       if (!response.ok) {
@@ -270,18 +271,41 @@ async function remoteResponseText(
 
 function firstRemoteEvidenceUrl(reference: ResolvedReference): string | undefined {
   const raw = reference.resolved?.raw ?? reference.input.raw ?? {};
+  const primaryLocation = remoteLocation(raw.primary_location);
+  const bestOaLocation = remoteLocation(raw.best_oa_location);
+  const locations = Array.isArray(raw.locations)
+    ? raw.locations.map(remoteLocation).filter((location): location is RemoteLocation =>
+        Boolean(location)
+      )
+    : [];
   const candidates = [
     raw.content_url,
-    raw.oa_url,
+    bestOaLocation?.pdf_url,
+    primaryLocation?.pdf_url,
+    ...locations.map((location) => location.pdf_url),
     (raw.open_access as { oa_url?: unknown } | undefined)?.oa_url,
-    (raw.primary_location as { landing_page_url?: unknown } | undefined)
-      ?.landing_page_url
+    raw.oa_url,
+    bestOaLocation?.landing_page_url,
+    primaryLocation?.landing_page_url,
+    ...locations.map((location) => location.landing_page_url)
   ];
 
   return candidates.find(
     (candidate): candidate is string =>
       typeof candidate === 'string' && /^https?:\/\//i.test(candidate)
   );
+}
+
+type RemoteLocation = {
+  pdf_url?: unknown;
+  landing_page_url?: unknown;
+};
+
+function remoteLocation(value: unknown): RemoteLocation | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as RemoteLocation;
 }
 
 function sentenceWindows(text: string, windowSize = 2): string[] {
