@@ -64,7 +64,8 @@ Useful options:
 - `--bib <path>`: required. Supports BibTeX (`.bib`) and CSL JSON (`.json`).
 - RIS (`.ris`) bibliographies are supported too.
 - `--style <style>`: CSL template name. Defaults to `ieee`.
-- `--venue <venue>`: venue rule pack id from `venues/*.yaml`.
+- `--venue <venue>`: venue rule pack id from `venues/*.yaml`, or a path to a
+  custom YAML rule pack.
 - `--evidence <paths...>`: files or directories containing `.txt`, `.md`, `.tex`,
   `.xml`, `.tei`, or `.pdf` evidence.
 - `--fetch-remote-evidence`: opt-in fetch for remote content URLs exposed by
@@ -236,6 +237,13 @@ rules:
 ```
 
 CSL handles rendering. Rule packs handle venue policy.
+
+Custom packs can be used directly:
+
+```bash
+citekit check paper.md --bib refs.bib --venue ./venues/my-conference.yaml
+citekit format refs.bib --venue ./venues/my-conference.yaml --manuscript paper.md
+```
 
 Packaged rule packs:
 

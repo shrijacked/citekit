@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parse } from 'yaml';
 import type {
   ClaimCitationLink,
@@ -23,9 +23,14 @@ export async function loadVenueRulePack(
     return direct;
   }
 
+  const explicitPath = existsSync(venue)
+    ? venue
+    : existsSync(resolve(venue))
+      ? resolve(venue)
+      : undefined;
   const cwdPath = join(process.cwd(), 'venues', `${venue}.yaml`);
   const packagePath = new URL(`../../venues/${venue}.yaml`, import.meta.url);
-  const path = existsSync(cwdPath) ? cwdPath : packagePath;
+  const path = explicitPath ?? (existsSync(cwdPath) ? cwdPath : packagePath);
 
   try {
     const raw = await readFile(path, 'utf8');

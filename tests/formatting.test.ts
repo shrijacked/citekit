@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   checkFormatting,
   loadVenueRulePack,
@@ -44,6 +47,32 @@ describe('checkFormatting', () => {
       label: 'NeurIPS',
       cslStyle: 'harvard1',
       rules: {
+        referenceOrder: 'alphabetical'
+      }
+    });
+  });
+
+  it('loads venue rule packs from explicit YAML paths', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-venue-pack-'));
+    const venuePath = join(dir, 'conference.yaml');
+    await writeFile(
+      venuePath,
+      `id: local-conf
+label: Local Conference
+cslStyle: ieee
+rules:
+  requireDoi: true
+  requireYear: true
+  referenceOrder: alphabetical
+`,
+      'utf8'
+    );
+
+    await expect(loadVenueRulePack(venuePath)).resolves.toMatchObject({
+      id: 'local-conf',
+      label: 'Local Conference',
+      rules: {
+        requireDoi: true,
         referenceOrder: 'alphabetical'
       }
     });

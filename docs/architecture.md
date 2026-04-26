@@ -49,6 +49,8 @@ flowchart TD
 - Bibliography formatting can reorder references for the target venue. Citation-order
   venues use extracted manuscript claims when a manuscript is supplied to
   `citekit format --manuscript`.
+- Venue rule packs can come from packaged ids such as `ieee` or explicit YAML paths,
+  so project-specific conference policies do not require code changes.
 - Style resolution first tries Citation.js built-ins, then packaged CSL files in
   `styles/*.csl`, then local project styles. Venue packs can provide the default
   `cslStyle`, so users can run `--venue nature` without also remembering the style id.
