@@ -52,4 +52,19 @@ describe('extractClaims', () => {
       }
     });
   });
+
+  it('tracks line numbers for later cited sentences in one paragraph', () => {
+    const claims = extractClaims(
+      [
+        'First sentence has no citation.',
+        'Second sentence cites evidence [@smith2020].',
+        'Third sentence cites more evidence [@doe2021].'
+      ].join('\n'),
+      'paper.md'
+    );
+
+    expect(claims).toHaveLength(2);
+    expect(claims[0].source.line).toBe(2);
+    expect(claims[1].source.line).toBe(3);
+  });
 });

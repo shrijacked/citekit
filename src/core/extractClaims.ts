@@ -25,13 +25,19 @@ export function extractClaims(
       continue;
     }
 
-    for (const sentence of splitSentences(paragraph.text)) {
+    const flattened = flattenWithLineOffsets(paragraph.text);
+    let searchStart = 0;
+
+    for (const sentence of splitSentences(flattened.text)) {
       const citationKeys = extractCitationKeys(sentence);
       if (citationKeys.length === 0) {
         continue;
       }
 
-      const sentenceOffset = paragraph.text.indexOf(sentence);
+      const sentenceOffset = flattened.text.indexOf(sentence, searchStart);
+      searchStart =
+        sentenceOffset >= 0 ? sentenceOffset + sentence.length : searchStart;
+
       links.push({
         id: `C${links.length + 1}`,
         claim: cleanClaim(sentence),
@@ -40,7 +46,7 @@ export function extractClaims(
           path: manuscriptPath,
           line:
             paragraph.startLine +
-            countNewlines(paragraph.text.slice(0, Math.max(0, sentenceOffset)))
+            (sentenceOffset >= 0 ? flattened.lineOffsets[sentenceOffset] : 0)
         }
       });
     }
@@ -82,7 +88,6 @@ function textIncludesCitation(line: string): boolean {
 
 function splitSentences(line: string): string[] {
   return line
-    .replace(/\n+/g, ' ')
     .split(/(?<=[.!?])\s+(?=[A-Z0-9\\[])/)
     .map(normalizeWhitespace)
     .filter(Boolean);
@@ -135,4 +140,51 @@ function countNewlines(value: string): number {
 
 function countLeadingNewlines(value: string): number {
   return value.match(/^\n*/)?.[0].length ?? 0;
+}
+
+function flattenWithLineOffsets(value: string): {
+  text: string;
+  lineOffsets: number[];
+} {
+  const chars: string[] = [];
+  const lineOffsets: number[] = [];
+  let lineOffset = 0;
+  let previousWasSpace = false;
+
+  for (const char of value) {
+    if (char === '\n') {
+      lineOffset += 1;
+      pushCollapsedSpace(chars, lineOffsets, lineOffset, previousWasSpace);
+      previousWasSpace = true;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      pushCollapsedSpace(chars, lineOffsets, lineOffset, previousWasSpace);
+      previousWasSpace = true;
+      continue;
+    }
+
+    chars.push(char);
+    lineOffsets.push(lineOffset);
+    previousWasSpace = false;
+  }
+
+  return {
+    text: chars.join(''),
+    lineOffsets
+  };
+}
+
+function pushCollapsedSpace(
+  chars: string[],
+  lineOffsets: number[],
+  lineOffset: number,
+  previousWasSpace: boolean
+): void {
+  if (previousWasSpace) {
+    return;
+  }
+  chars.push(' ');
+  lineOffsets.push(lineOffset);
 }
