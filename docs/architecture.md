@@ -52,6 +52,8 @@ flowchart TD
 - Style resolution first tries Citation.js built-ins, then packaged CSL files in
   `styles/*.csl`, then local project styles. Venue packs can provide the default
   `cslStyle`, so users can run `--venue nature` without also remembering the style id.
+- Unknown style ids fail closed. CiteKit does not silently substitute APA or another
+  fallback style because that would hide formatting non-compliance.
 
 ## Failure Behavior
 

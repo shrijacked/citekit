@@ -53,14 +53,6 @@ export async function resolveCitationStyle(
     };
   }
 
-  if (config.templates.has('apa')) {
-    return {
-      requested: style,
-      template: 'apa',
-      source: 'builtin'
-    };
-  }
-
   throw new Error(`No CSL style template found for "${style}".`);
 }
 

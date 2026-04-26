@@ -32,4 +32,10 @@ describe('renderBibliography', () => {
       'Neural Citation Audits Improve Reference Accuracy'
     );
   });
+
+  it('fails instead of silently falling back when a CSL style is unknown', async () => {
+    await expect(
+      renderBibliography(references, 'unknown-conference-style')
+    ).rejects.toThrow('No CSL style template found');
+  });
 });

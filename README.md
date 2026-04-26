@@ -82,6 +82,10 @@ Useful options:
 The command exits with code `1` when it finds reference errors, contradicted or
 unverifiable claims, or formatting failures.
 
+Unknown CSL styles fail instead of falling back to another style. This is intentional:
+silently rendering APA for an IEEE, Nature, or conference submission would make the
+output look valid while being wrong.
+
 ### `citekit format`
 
 Renders a bibliography and applies venue rule checks.
