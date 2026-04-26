@@ -24,10 +24,11 @@ import { renderBibliography } from './renderBibliography.js';
 export async function runCitationAudit(
   input: CitationAuditInput
 ): Promise<CitationAuditReport> {
-  const style = input.style ?? 'ieee';
   const claims = await extractClaimsFromFile(input.manuscriptPath);
   const references = await loadReferences(input.bibliographyPath);
   const providers = input.metadataProviders ?? defaultMetadataProviders();
+  const rulePack = await loadVenueRulePack(input.venue, input.rulePacks);
+  const style = input.style ?? rulePack?.cslStyle ?? 'ieee';
   const resolved = await resolveReferences(references, providers);
   const userEvidence = await loadEvidenceStore(input.evidencePaths ?? [], references);
   const metadataEvidence = metadataEvidenceFromResolved(resolved);
@@ -37,7 +38,6 @@ export async function runCitationAudit(
     [...userEvidence, ...metadataEvidence],
     input.claimClassifier
   );
-  const rulePack = await loadVenueRulePack(input.venue, input.rulePacks);
   const formatting = checkFormatting(references, rulePack, claims);
   const bibliography = await renderBibliography(references, style);
   const findings = [

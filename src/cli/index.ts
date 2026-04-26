@@ -23,7 +23,10 @@ program
   .command('check')
   .argument('<manuscript>', 'Markdown or LaTeX manuscript path')
   .requiredOption('--bib <path>', 'BibTeX or CSL JSON bibliography path')
-  .option('--style <style>', 'CSL style id or template name', 'ieee')
+  .option(
+    '--style <style>',
+    'CSL style id, packaged style name, or local .csl path'
+  )
   .option('--venue <venue>', 'Venue rule pack id, e.g. ieee or acm-sigconf')
   .option('--evidence <paths...>', 'Evidence files or directories')
   .option('--report <format>', 'Report format: json or html', 'json')
@@ -38,7 +41,7 @@ program
       manuscript: string,
       options: {
         bib: string;
-        style: string;
+        style?: string;
         venue?: string;
         evidence?: string[];
         report: 'json' | 'html';
@@ -69,21 +72,27 @@ program
 program
   .command('format')
   .argument('<bibliography>', 'BibTeX or CSL JSON bibliography path')
-  .option('--style <style>', 'CSL style id or template name', 'ieee')
+  .option(
+    '--style <style>',
+    'CSL style id, packaged style name, or local .csl path'
+  )
   .option('--venue <venue>', 'Venue rule pack id')
   .option('--out <path>', 'Write formatted bibliography to a file')
   .action(
     async (
       bibliographyPath: string,
       options: {
-        style: string;
+        style?: string;
         venue?: string;
         out?: string;
       }
     ) => {
       const references = await loadReferences(bibliographyPath);
-      const bibliography = await renderBibliography(references, options.style);
       const rulePack = await loadVenueRulePack(options.venue);
+      const bibliography = await renderBibliography(
+        references,
+        options.style ?? rulePack?.cslStyle ?? 'ieee'
+      );
       const findings = checkFormatting(references, rulePack);
       const output = bibliography.entries.join('\n\n') + '\n';
       await writeOrPrint(output, options.out);

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-US">
+  <info>
+    <title>CiteKit ACM SIG Proceedings Minimal</title>
+    <id>https://github.com/shrijacked/citekit/styles/acm-sig-proceedings</id>
+    <updated>2026-04-27T00:00:00+00:00</updated>
+  </info>
+  <macro name="author">
+    <names variable="author">
+      <name initialize-with=". " delimiter=", "/>
+      <substitute>
+        <text variable="title"/>
+      </substitute>
+    </names>
+  </macro>
+  <macro name="issued">
+    <date variable="issued">
+      <date-part name="year"/>
+    </date>
+  </macro>
+  <citation>
+    <layout prefix="[" suffix="]" delimiter=", ">
+      <text macro="author"/>
+      <text macro="issued" prefix=" "/>
+    </layout>
+  </citation>
+  <bibliography>
+    <sort>
+      <key macro="author"/>
+      <key macro="issued"/>
+    </sort>
+    <layout suffix=".">
+      <text macro="author" suffix=". "/>
+      <text macro="issued" suffix=". "/>
+      <text variable="title" suffix=". "/>
+      <text variable="container-title" font-style="italic" suffix=". "/>
+      <text variable="DOI" prefix="https://doi.org/"/>
+    </layout>
+  </bibliography>
+</style>

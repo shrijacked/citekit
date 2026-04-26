@@ -1,15 +1,22 @@
 import type { ReferenceRecord, RenderedBibliography } from '../types.js';
 import { referenceToCslItem } from './references.js';
+import { resolveCitationStyle } from './styles.js';
 
 export async function renderBibliography(
   references: ReferenceRecord[],
   style: string
 ): Promise<RenderedBibliography> {
-  const citationJsResult = await tryRenderWithCitationJs(references, style);
+  const resolvedStyle = await resolveCitationStyle(style);
+  const citationJsResult = await tryRenderWithCitationJs(
+    references,
+    resolvedStyle.template
+  );
   if (citationJsResult) {
     return {
-      style,
-      entries: splitRenderedBibliography(citationJsResult)
+      style: resolvedStyle.template,
+      entries: Array.isArray(citationJsResult)
+        ? citationJsResult.map(([, entry]) => entry.trim()).filter(Boolean)
+        : splitRenderedBibliography(citationJsResult)
     };
   }
 
@@ -31,9 +38,8 @@ function splitRenderedBibliography(value: string): string[] {
 async function tryRenderWithCitationJs(
   references: ReferenceRecord[],
   style: string
-): Promise<string | undefined> {
+): Promise<string | Array<[string, string]> | undefined> {
   try {
-    await import('@citation-js/plugin-csl');
     const module = (await import('@citation-js/core')) as {
       Cite: new (input: unknown[]) => {
         format: (
@@ -42,29 +48,21 @@ async function tryRenderWithCitationJs(
             format: 'text';
             template: string;
             lang: string;
+            asEntryArray?: boolean;
           }
-        ) => string;
+        ) => string | Array<[string, string]>;
       };
     };
     const cite = new module.Cite(references.map(referenceToCslItem));
     return cite.format('bibliography', {
       format: 'text',
-      template: normalizeStyleTemplate(style),
-      lang: 'en-US'
+      template: style,
+      lang: 'en-US',
+      asEntryArray: true
     });
   } catch {
     return undefined;
   }
-}
-
-function normalizeStyleTemplate(style: string): string {
-  const aliases: Record<string, string> = {
-    ieee: 'ieee',
-    nature: 'nature',
-    acm: 'acm-sig-proceedings',
-    'acm-sigconf': 'acm-sig-proceedings'
-  };
-  return aliases[style] ?? style;
 }
 
 function renderFallbackReference(
