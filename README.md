@@ -247,6 +247,9 @@ citekit check paper.md --bib refs.bib --venue ./venues/my-conference.yaml
 citekit format refs.bib --venue ./venues/my-conference.yaml --manuscript paper.md
 ```
 
+Missing or unreadable custom venue paths fail immediately. Built-in venue ids that
+are not found produce a warning and skip venue-specific checks.
+
 Packaged rule packs:
 
 - `ieee`

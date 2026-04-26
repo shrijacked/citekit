@@ -53,6 +53,8 @@ flowchart TD
   `citekit format --manuscript`.
 - Venue rule packs can come from packaged ids such as `ieee` or explicit YAML paths,
   so project-specific conference policies do not require code changes.
+  Missing explicit paths fail immediately; unknown packaged ids degrade to a warning
+  because CSL rendering can still run without venue-specific policy checks.
 - Style resolution first tries Citation.js built-ins, then packaged CSL files in
   `styles/*.csl`, then local project styles. Venue packs can provide the default
   `cslStyle`, so users can run `--venue nature` without also remembering the style id.

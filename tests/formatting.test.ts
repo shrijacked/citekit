@@ -78,6 +78,14 @@ rules:
     });
   });
 
+  it('fails when an explicit venue rule pack path is missing', async () => {
+    const missingPath = join(tmpdir(), 'citekit-missing-venue.yaml');
+
+    await expect(loadVenueRulePack(missingPath)).rejects.toThrow(
+      'Venue rule pack path was not found'
+    );
+  });
+
   it('orders references by first citation for numeric venues', () => {
     const references: ReferenceRecord[] = [
       {

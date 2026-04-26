@@ -28,6 +28,10 @@ export async function loadVenueRulePack(
     : existsSync(resolve(venue))
       ? resolve(venue)
       : undefined;
+  if (!explicitPath && isExplicitVenuePath(venue)) {
+    throw new Error(`Venue rule pack path was not found: ${venue}`);
+  }
+
   const cwdPath = join(process.cwd(), 'venues', `${venue}.yaml`);
   const packagePath = new URL(`../../venues/${venue}.yaml`, import.meta.url);
   const path = explicitPath ?? (existsSync(cwdPath) ? cwdPath : packagePath);
@@ -35,9 +39,24 @@ export async function loadVenueRulePack(
   try {
     const raw = await readFile(path, 'utf8');
     return parse(raw) as VenueRulePack;
-  } catch {
+  } catch (error) {
+    if (explicitPath) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Could not load venue rule pack from ${explicitPath}: ${message}`
+      );
+    }
     return undefined;
   }
+}
+
+function isExplicitVenuePath(venue: string): boolean {
+  return (
+    venue.endsWith('.yaml') ||
+    venue.endsWith('.yml') ||
+    venue.includes('/') ||
+    venue.includes('\\')
+  );
 }
 
 export function checkFormatting(
