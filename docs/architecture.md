@@ -16,6 +16,7 @@ flowchart TD
   Claims --> Verifier["Claim verifier"]
   Resolved --> Verifier
   EvidenceStore --> Verifier
+  Classifier["Optional classifier command"] --> Verifier
   References --> Renderer["Bibliography renderer"]
   Venue["VenueRulePack"] --> Formatting["Formatting checker"]
   Renderer --> Formatting
@@ -40,6 +41,9 @@ flowchart TD
   keeps URL locators in the proof object.
 - Claim verification only judges retrieved spans. It does not search the web during
   claim classification.
+- Optional classifier commands receive only the claim, cited references, and retrieved
+  spans for that claim. They must return span ids from the request before CiteKit will
+  accept a `supported`, `weak_support`, or `contradicted` verdict.
 - Formatting renders the bibliography and applies venue policy checks from YAML rule
   packs.
 - Style resolution first tries Citation.js built-ins, then packaged CSL files in
@@ -69,3 +73,19 @@ trusting the verifier blindly:
 - Claim findings include evidence span ids plus quoted evidence text, source type,
   path, and locator when available.
 - Formatting findings include the rule that failed and the suggested fix.
+
+## External Classifier Boundary
+
+```mermaid
+sequenceDiagram
+  participant CK as CiteKit verifier
+  participant CMD as Classifier command
+  CK->>CMD: JSON claim + cited references + retrieved evidence spans
+  CMD->>CK: JSON verdict + confidence + span ids
+  CK->>CK: Reject unsupported span ids
+  CK->>CK: Downgrade unsupported proof to unverifiable
+```
+
+The command adapter uses `spawn` without a shell. Shell syntax such as pipes,
+redirection, and environment expansion is not interpreted by CiteKit. Users who need
+that behavior can wrap it in a script and pass the script as the classifier command.

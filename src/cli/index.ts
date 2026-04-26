@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { Command } from 'commander';
 import {
   checkFormatting,
+  createCommandClaimClassifier,
   FixtureMetadataProvider,
   loadReferences,
   loadVenueRulePack,
@@ -43,6 +44,10 @@ program
     '--fetch-remote-evidence',
     'Fetch remote evidence URLs exposed by resolved metadata'
   )
+  .option(
+    '--classifier-command <command>',
+    'External claim classifier command that reads JSON from stdin and writes JSON to stdout'
+  )
   .option('--offline', 'Disable live metadata providers')
   .action(
     async (
@@ -57,6 +62,7 @@ program
         metadataFixture?: string;
         metadataCache?: string;
         fetchRemoteEvidence?: boolean;
+        classifierCommand?: string;
         offline?: boolean;
       }
     ) => {
@@ -69,7 +75,10 @@ program
         evidencePaths: options.evidence ?? [],
         metadataProviders,
         metadataCachePath: options.metadataCache,
-        fetchRemoteEvidence: options.fetchRemoteEvidence
+        fetchRemoteEvidence: options.fetchRemoteEvidence,
+        claimClassifier: options.classifierCommand
+          ? createCommandClaimClassifier(options.classifierCommand)
+          : undefined
       });
 
       const rendered =

@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './core/audit.js';
 export * from './core/claimVerifier.js';
 export * from './core/evidenceStore.js';
+export * from './core/externalClassifier.js';
 export * from './core/extractClaims.js';
 export * from './core/formatting.js';
 export * from './core/metadataResolver.js';

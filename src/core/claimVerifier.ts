@@ -71,7 +71,11 @@ export async function verifyClaimsWithClassifier(
       .map((id) => spanById.get(id))
       .filter((span): span is EvidenceSpan => Boolean(span));
 
-    if (classification.verdict === 'supported' && supportingSpans.length === 0) {
+    if (
+      (classification.verdict === 'supported' ||
+        classification.verdict === 'weak_support') &&
+      supportingSpans.length === 0
+    ) {
       results.push({
         claim,
         verdict: 'unverifiable',
@@ -79,7 +83,7 @@ export async function verifyClaimsWithClassifier(
         supportingSpans: [],
         contradictedBy: [],
         message:
-          'Classifier returned supported without a valid retrieved evidence span.'
+          `Classifier returned ${classification.verdict} without a valid retrieved evidence span.`
       });
       continue;
     }

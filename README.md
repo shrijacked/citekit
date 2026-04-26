@@ -54,6 +54,7 @@ citekit check paper.tex \
   --style ieee \
   --venue acm-sigconf \
   --evidence ./evidence \
+  --classifier-command 'node ./classify-claim.mjs' \
   --report json \
   --out report.json
 ```
@@ -71,6 +72,9 @@ Useful options:
 - `--metadata-fixture <path>`: deterministic resolver fixture for tests and offline CI.
 - `--metadata-cache <path>`: JSON cache for resolver responses, useful for live
   Crossref/OpenAlex/Semantic Scholar runs.
+- `--classifier-command <command>`: optional external classifier. The command reads
+  one claim verification request as JSON from stdin and writes one JSON verdict to
+  stdout.
 - `--offline`: disables live metadata providers.
 - `--report json|html`: output format.
 - `--out <path>`: writes the report to a file.
@@ -96,6 +100,39 @@ citekit explain report.json --claim C12
 
 The explanation includes the manuscript source line, cited reference status, DOI,
 evidence quotes, locators, findings, and suggested fixes.
+
+## External Classifiers
+
+`--classifier-command` lets teams plug in their own local model, hosted model
+wrapper, or deterministic classifier without binding CiteKit to one AI vendor.
+CiteKit runs the command without a shell, sends only retrieved spans, and validates
+that any `supported`, `weak_support`, or `contradicted` verdict cites span ids from
+that request.
+
+Input on stdin:
+
+```json
+{
+  "claim": { "id": "C1", "claim": "...", "citationKeys": ["smith2020"] },
+  "references": [{ "id": "smith2020", "title": "...", "authors": ["..."] }],
+  "evidence": [{ "id": "E1", "referenceId": "smith2020", "text": "..." }]
+}
+```
+
+Output on stdout:
+
+```json
+{
+  "verdict": "supported",
+  "confidence": 0.91,
+  "supportingSpanIds": ["E1"],
+  "message": "The cited span directly supports the claim."
+}
+```
+
+Run only classifier commands you trust. They execute as local processes. Their
+output cannot create support without retrieved span ids, but the process itself has
+the permissions of your shell.
 
 ## Library API
 
@@ -140,8 +177,10 @@ CiteKit is strict by default.
 - Remote evidence fetching is off by default. When enabled, CiteKit only uses URLs
   exposed by resolver metadata and still requires quoted retrieved spans in proof.
 - Optional AI classifiers can only classify retrieved evidence spans. If a classifier
-  returns a span id that was not retrieved, CiteKit downgrades the claim to
-  `unverifiable`.
+  returns an evidence-based verdict without retrieved span ids, CiteKit downgrades
+  the claim to `unverifiable`.
+- The CLI classifier hook is vendor-neutral by design. It passes JSON over stdin and
+  requires exact span ids in JSON over stdout.
 
 No source text means no support verdict. That is intentional.
 
@@ -150,12 +189,13 @@ No source text means no support verdict. That is intentional.
 ```mermaid
 flowchart LR
   A["Markdown/LaTeX manuscript"] --> B["Claim + citation extractor"]
-  C["BibTeX / CSL JSON"] --> D["Reference normalizer"]
+  C["BibTeX / CSL JSON / RIS"] --> D["Reference normalizer"]
   D --> E["Metadata resolver"]
   F["User PDFs / TEI / text evidence"] --> G["Evidence store"]
   B --> H["Claim-support verifier"]
   E --> H
   G --> H
+  N["Optional external classifier"] --> H
   D --> I["CSL renderer"]
   J["Venue rule pack"] --> K["Formatting checker"]
   I --> K

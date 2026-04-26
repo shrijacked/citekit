@@ -97,4 +97,29 @@ describe('verifyClaim', () => {
     expect(result.verdict).toBe('unverifiable');
     expect(result.message).toContain('without a valid retrieved evidence span');
   });
+
+  it('rejects weak classifier proof that does not cite retrieved evidence spans', async () => {
+    const [result] = await verifyClaimsWithClassifier(
+      [claim('Neural citation audits improve reference accuracy')],
+      [
+        {
+          input: reference,
+          resolved: reference,
+          verdict: 'verified',
+          confidence: 1,
+          mismatches: [],
+          evidence: []
+        }
+      ],
+      [span('Neural citation audits improve reference accuracy.')],
+      async () => ({
+        verdict: 'weak_support',
+        confidence: 0.5,
+        message: 'Maybe supported.'
+      })
+    );
+
+    expect(result.verdict).toBe('unverifiable');
+    expect(result.message).toContain('without a valid retrieved evidence span');
+  });
 });

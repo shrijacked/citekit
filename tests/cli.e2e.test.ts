@@ -86,4 +86,48 @@ describe('citekit CLI', () => {
       report.findings.some((finding) => finding.proof?.evidenceQuotes?.length)
     ).toBe(true);
   });
+
+  it('guards classifier commands that cite invented evidence spans', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-classifier-cli-'));
+    const out = join(dir, 'report.json');
+
+    await expect(
+      execFileAsync(
+        'pnpm',
+        [
+          'exec',
+          'tsx',
+          'src/cli/index.ts',
+          'check',
+          resolve(fixtureDir, 'paper.md'),
+          '--bib',
+          resolve(fixtureDir, 'refs.bib'),
+          '--venue',
+          'ieee',
+          '--evidence',
+          resolve(fixtureDir, 'evidence'),
+          '--metadata-fixture',
+          resolve(fixtureDir, 'metadata.json'),
+          '--classifier-command',
+          `node "${resolve(fixtureDir, 'classifier-invented.mjs')}"`,
+          '--out',
+          out
+        ],
+        { cwd: resolve('.') }
+      )
+    ).rejects.toMatchObject({ code: 1 });
+
+    const report = JSON.parse(await readFile(out, 'utf8')) as {
+      claims: Array<{
+        claim: { id: string };
+        verdict: string;
+        message: string;
+      }>;
+    };
+    const firstClaim = report.claims.find((item) => item.claim.id === 'C1');
+    expect(firstClaim?.verdict).toBe('unverifiable');
+    expect(firstClaim?.message).toContain(
+      'without a valid retrieved evidence span'
+    );
+  });
 });
