@@ -8,3 +8,4 @@ export * from './core/metadataResolver.js';
 export * from './core/references.js';
 export * from './core/renderBibliography.js';
 export * from './providers/index.js';
+export * from './report/index.js';
