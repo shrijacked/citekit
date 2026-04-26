@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { verifyClaim } from '../src/core/claimVerifier.js';
+import {
+  verifyClaim,
+  verifyClaimsWithClassifier
+} from '../src/core/claimVerifier.js';
 import type { ClaimCitationLink, EvidenceSpan, ReferenceRecord } from '../src/types.js';
 
 const reference: ReferenceRecord = {
@@ -57,5 +60,31 @@ describe('verifyClaim', () => {
     const result = verifyClaim(claim('Citation audits improve accuracy'), [reference], []);
 
     expect(result.verdict).toBe('unverifiable');
+  });
+
+  it('rejects classifier proof that does not cite retrieved evidence spans', async () => {
+    const [result] = await verifyClaimsWithClassifier(
+      [claim('Neural citation audits improve reference accuracy')],
+      [
+        {
+          input: reference,
+          resolved: reference,
+          verdict: 'verified',
+          confidence: 1,
+          mismatches: [],
+          evidence: []
+        }
+      ],
+      [span('Neural citation audits improve reference accuracy.')],
+      async () => ({
+        verdict: 'supported',
+        confidence: 1,
+        supportingSpanIds: ['invented-span'],
+        message: 'Looks supported.'
+      })
+    );
+
+    expect(result.verdict).toBe('unverifiable');
+    expect(result.message).toContain('without a valid retrieved evidence span');
   });
 });

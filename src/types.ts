@@ -25,6 +25,7 @@ export type CitationAuditInput = {
   evidencePaths?: string[];
   metadataProviders?: MetadataProvider[];
   rulePacks?: VenueRulePack[];
+  claimClassifier?: ClaimEvidenceClassifier;
 };
 
 export type ReferenceRecord = {
@@ -95,6 +96,18 @@ export type ClaimVerification = {
   contradictedBy: EvidenceSpan[];
   message: string;
 };
+
+export type ClaimEvidenceClassifier = (request: {
+  claim: ClaimCitationLink;
+  references: ReferenceRecord[];
+  evidence: EvidenceSpan[];
+}) => Promise<{
+  verdict: ClaimVerdict;
+  confidence: number;
+  supportingSpanIds?: string[];
+  contradictedBySpanIds?: string[];
+  message: string;
+}>;
 
 export type VenueRulePack = {
   id: string;

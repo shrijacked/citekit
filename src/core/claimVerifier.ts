@@ -1,4 +1,5 @@
 import type {
+  ClaimEvidenceClassifier,
   ClaimCitationLink,
   ClaimVerification,
   EvidenceSpan,
@@ -27,6 +28,86 @@ export function verifyClaims(
       evidence
     )
   );
+}
+
+export async function verifyClaimsWithClassifier(
+  claims: ClaimCitationLink[],
+  references: ResolvedReference[],
+  evidence: EvidenceSpan[],
+  classifier?: ClaimEvidenceClassifier
+): Promise<ClaimVerification[]> {
+  if (!classifier) {
+    return verifyClaims(claims, references, evidence);
+  }
+
+  const knownReferences = new Map(
+    references.map((reference) => [reference.input.id, reference.input])
+  );
+  const results: ClaimVerification[] = [];
+
+  for (const claim of claims) {
+    const citedReferences = claim.citationKeys
+      .map((key) => knownReferences.get(key))
+      .filter((reference): reference is ReferenceRecord => Boolean(reference));
+    const spans = evidence.filter((span) =>
+      claim.citationKeys.includes(span.referenceId)
+    );
+
+    if (citedReferences.length !== claim.citationKeys.length || spans.length === 0) {
+      results.push(verifyClaim(claim, citedReferences, spans));
+      continue;
+    }
+
+    const classification = await classifier({
+      claim,
+      references: citedReferences,
+      evidence: spans
+    });
+    const spanById = new Map(spans.map((span) => [span.id, span]));
+    const supportingSpans = (classification.supportingSpanIds ?? [])
+      .map((id) => spanById.get(id))
+      .filter((span): span is EvidenceSpan => Boolean(span));
+    const contradictedBy = (classification.contradictedBySpanIds ?? [])
+      .map((id) => spanById.get(id))
+      .filter((span): span is EvidenceSpan => Boolean(span));
+
+    if (classification.verdict === 'supported' && supportingSpans.length === 0) {
+      results.push({
+        claim,
+        verdict: 'unverifiable',
+        confidence: 0,
+        supportingSpans: [],
+        contradictedBy: [],
+        message:
+          'Classifier returned supported without a valid retrieved evidence span.'
+      });
+      continue;
+    }
+
+    if (classification.verdict === 'contradicted' && contradictedBy.length === 0) {
+      results.push({
+        claim,
+        verdict: 'unverifiable',
+        confidence: 0,
+        supportingSpans: [],
+        contradictedBy: [],
+        message:
+          'Classifier returned contradicted without a valid retrieved evidence span.'
+      });
+      continue;
+    }
+
+    results.push({
+      claim,
+      verdict: classification.verdict,
+      confidence: clampConfidence(classification.confidence),
+      supportingSpans,
+      contradictedBy,
+      message: classification.message
+    });
+  }
+
+  return results;
 }
 
 export function verifyClaim(
@@ -151,4 +232,11 @@ function stripCitationNoise(value: string): string {
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function clampConfidence(value: number): number {
+  if (Number.isNaN(value)) {
+    return 0;
+  }
+  return round(Math.min(1, Math.max(0, value)));
 }

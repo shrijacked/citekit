@@ -17,7 +17,7 @@ import {
   metadataEvidenceFromResolved
 } from './evidenceStore.js';
 import { resolveReferences } from './metadataResolver.js';
-import { verifyClaims } from './claimVerifier.js';
+import { verifyClaimsWithClassifier } from './claimVerifier.js';
 import { checkFormatting, loadVenueRulePack } from './formatting.js';
 import { renderBibliography } from './renderBibliography.js';
 
@@ -31,10 +31,12 @@ export async function runCitationAudit(
   const resolved = await resolveReferences(references, providers);
   const userEvidence = await loadEvidenceStore(input.evidencePaths ?? [], references);
   const metadataEvidence = metadataEvidenceFromResolved(resolved);
-  const claimResults = verifyClaims(claims, resolved, [
-    ...userEvidence,
-    ...metadataEvidence
-  ]);
+  const claimResults = await verifyClaimsWithClassifier(
+    claims,
+    resolved,
+    [...userEvidence, ...metadataEvidence],
+    input.claimClassifier
+  );
   const rulePack = await loadVenueRulePack(input.venue, input.rulePacks);
   const formatting = checkFormatting(references, rulePack, claims);
   const bibliography = await renderBibliography(references, style);
