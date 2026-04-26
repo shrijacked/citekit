@@ -1,0 +1,10 @@
+id: apa
+label: APA
+cslStyle: apa
+rules:
+  requireDoi: true
+  requireUrlWhenNoDoi: true
+  disallowUrlWhenDoiPresent: false
+  requireYear: true
+  referenceOrder: alphabetical
+  maxAuthorsBeforeEtAl: 20

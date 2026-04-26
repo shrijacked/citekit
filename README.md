@@ -169,6 +169,16 @@ rules:
 
 CSL handles rendering. Rule packs handle venue policy.
 
+Packaged rule packs:
+
+- `ieee`
+- `acm-sigconf`
+- `nature`
+- `apa`
+- `vancouver`
+- `neurips`
+- `acl`
+
 ## Metadata Providers
 
 CiteKit includes provider adapters for:

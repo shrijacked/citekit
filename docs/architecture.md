@@ -37,6 +37,9 @@ flowchart TD
   claim classification.
 - Formatting renders the bibliography and applies venue policy checks from YAML rule
   packs.
+- Style resolution first tries Citation.js built-ins, then packaged CSL files in
+  `styles/*.csl`, then local project styles. Venue packs can provide the default
+  `cslStyle`, so users can run `--venue nature` without also remembering the style id.
 
 ## Failure Behavior
 

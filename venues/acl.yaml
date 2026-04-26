@@ -1,0 +1,10 @@
+id: acl
+label: ACL
+cslStyle: harvard1
+rules:
+  requireDoi: false
+  requireUrlWhenNoDoi: false
+  disallowUrlWhenDoiPresent: false
+  requireYear: true
+  referenceOrder: alphabetical
+  maxAuthorsBeforeEtAl: 20

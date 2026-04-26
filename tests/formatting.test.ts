@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkFormatting } from '../src/core/formatting.js';
+import { checkFormatting, loadVenueRulePack } from '../src/core/formatting.js';
 import type { ReferenceRecord, VenueRulePack } from '../src/types.js';
 
 const ieee: VenueRulePack = {
@@ -30,5 +30,18 @@ describe('checkFormatting', () => {
         expect.objectContaining({ rule: 'requireYear', verdict: 'fail' })
       ])
     );
+  });
+
+  it('loads packaged venue rule packs', async () => {
+    const rulePack = await loadVenueRulePack('neurips');
+
+    expect(rulePack).toMatchObject({
+      id: 'neurips',
+      label: 'NeurIPS',
+      cslStyle: 'harvard1',
+      rules: {
+        referenceOrder: 'alphabetical'
+      }
+    });
   });
 });

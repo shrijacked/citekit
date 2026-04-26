@@ -1,0 +1,10 @@
+id: vancouver
+label: Vancouver
+cslStyle: vancouver
+rules:
+  requireDoi: false
+  requireUrlWhenNoDoi: false
+  disallowUrlWhenDoiPresent: false
+  requireYear: true
+  referenceOrder: citation_order
+  maxAuthorsBeforeEtAl: 6
