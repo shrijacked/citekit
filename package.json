@@ -1,0 +1,55 @@
+{
+  "name": "citekit",
+  "version": "0.1.0",
+  "description": "Verifiable citation audit engine for reference integrity, claim support, and venue formatting.",
+  "type": "module",
+  "bin": {
+    "citekit": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "styles",
+    "venues",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/cli/index.ts"
+  },
+  "keywords": [
+    "citations",
+    "bibtex",
+    "csl",
+    "crossref",
+    "openalex",
+    "research"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@citation-js/core": "^0.7.18",
+    "@citation-js/plugin-bibtex": "^0.7.18",
+    "@citation-js/plugin-csl": "^0.7.18",
+    "@citation-js/plugin-doi": "^0.7.18",
+    "commander": "^12.1.0",
+    "yaml": "^2.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.12.2"
+}
