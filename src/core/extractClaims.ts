@@ -49,8 +49,12 @@ export function extractClaims(
 
 export function extractCitationKeys(value: string): string[] {
   const keys = new Set<string>();
+  MARKDOWN_CITATION.lastIndex = 0;
+  LATEX_CITATION.lastIndex = 0;
+  KEY_IN_MARKDOWN.lastIndex = 0;
 
   for (const match of value.matchAll(MARKDOWN_CITATION)) {
+    KEY_IN_MARKDOWN.lastIndex = 0;
     for (const keyMatch of match[1].matchAll(KEY_IN_MARKDOWN)) {
       keys.add(keyMatch[1]);
     }

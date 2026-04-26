@@ -1,0 +1,26 @@
+[
+  {
+    "id": "smith2020",
+    "type": "article-journal",
+    "title": "Neural Citation Audits Improve Reference Accuracy",
+    "authors": ["Ada Smith", "Ravi Kumar"],
+    "year": 2020,
+    "venue": "Journal of Verifiable Research",
+    "doi": "10.1000/citekit.1",
+    "raw": {
+      "abstract": "Neural citation audits improve reference accuracy by checking every cited claim against source text."
+    }
+  },
+  {
+    "id": "doe2021",
+    "type": "article-journal",
+    "title": "Large Language Models Often Cite Inaccurately",
+    "authors": ["Jane Doe"],
+    "year": 2021,
+    "venue": "AI Reference Studies",
+    "doi": "10.1000/citekit.2",
+    "raw": {
+      "abstract": "Large language models do not always cite accurately, and generated references require verification."
+    }
+  }
+]
