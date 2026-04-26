@@ -46,4 +46,44 @@ describe('citekit CLI', () => {
     };
     expect(report.summary.exitCode).toBe(1);
   });
+
+  it('accepts RIS bibliographies through the check command', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-ris-cli-'));
+    const out = join(dir, 'report.json');
+
+    await expect(
+      execFileAsync(
+        'pnpm',
+        [
+          'exec',
+          'tsx',
+          'src/cli/index.ts',
+          'check',
+          resolve(fixtureDir, 'paper.md'),
+          '--bib',
+          resolve(fixtureDir, 'refs.ris'),
+          '--venue',
+          'ieee',
+          '--evidence',
+          resolve(fixtureDir, 'evidence'),
+          '--metadata-fixture',
+          resolve(fixtureDir, 'metadata.json'),
+          '--metadata-cache',
+          join(dir, 'metadata-cache.json'),
+          '--out',
+          out
+        ],
+        { cwd: resolve('.') }
+      )
+    ).rejects.toMatchObject({ code: 1 });
+
+    const report = JSON.parse(await readFile(out, 'utf8')) as {
+      inputs: { bibliographyPath: string };
+      findings: Array<{ proof?: { evidenceQuotes?: unknown[] } }>;
+    };
+    expect(report.inputs.bibliographyPath).toContain('refs.ris');
+    expect(
+      report.findings.some((finding) => finding.proof?.evidenceQuotes?.length)
+    ).toBe(true);
+  });
 });

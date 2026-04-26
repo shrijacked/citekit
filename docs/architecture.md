@@ -27,10 +27,12 @@ flowchart TD
 
 - Claim extraction reads Markdown and LaTeX citation syntax and emits cited claim
   objects with source line numbers.
-- Reference normalization reads BibTeX or CSL JSON and produces stable
+- Reference normalization reads BibTeX, RIS, or CSL JSON and produces stable
   `ReferenceRecord` objects.
 - Metadata resolution queries configured providers and compares DOI, title, year,
   and authors against the input reference.
+- Metadata cache wrapping can persist provider responses in JSON so repeated audits
+  are deterministic and do not hit resolver APIs unnecessarily.
 - Evidence loading reads local evidence files, including PDFs through `pdf-parse`,
   and binds spans to bibliography ids.
 - Claim verification only judges retrieved spans. It does not search the web during
@@ -53,3 +55,14 @@ The audit exits non-zero for:
 
 Warnings do not fail the command. Examples: ambiguous metadata, weak claim support,
 or style preferences such as removing URLs when a DOI exists.
+
+## Proof Objects
+
+Every non-passing finding carries enough context to inspect the result without
+trusting the verifier blindly:
+
+- Reference findings include resolver source, mismatch field, expected value, and
+  actual value.
+- Claim findings include evidence span ids plus quoted evidence text, source type,
+  path, and locator when available.
+- Formatting findings include the rule that failed and the suggested fix.

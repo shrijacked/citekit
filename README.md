@@ -25,6 +25,7 @@ pnpm dev -- check tests/fixtures/paper.md \
   --style ieee \
   --venue ieee \
   --evidence tests/fixtures/evidence \
+  --metadata-cache .citekit-cache/metadata.json \
   --metadata-fixture tests/fixtures/metadata.json
 ```
 
@@ -59,11 +60,14 @@ citekit check paper.tex \
 Useful options:
 
 - `--bib <path>`: required. Supports BibTeX (`.bib`) and CSL JSON (`.json`).
+- RIS (`.ris`) bibliographies are supported too.
 - `--style <style>`: CSL template name. Defaults to `ieee`.
 - `--venue <venue>`: venue rule pack id from `venues/*.yaml`.
 - `--evidence <paths...>`: files or directories containing `.txt`, `.md`, `.tex`,
   `.xml`, `.tei`, or `.pdf` evidence.
 - `--metadata-fixture <path>`: deterministic resolver fixture for tests and offline CI.
+- `--metadata-cache <path>`: JSON cache for resolver responses, useful for live
+  Crossref/OpenAlex/Semantic Scholar runs.
 - `--offline`: disables live metadata providers.
 - `--report json|html`: output format.
 - `--out <path>`: writes the report to a file.
@@ -87,6 +91,9 @@ Explains one claim from a JSON report.
 citekit explain report.json --claim C12
 ```
 
+The explanation includes the manuscript source line, cited reference status, DOI,
+evidence quotes, locators, findings, and suggested fixes.
+
 ## Library API
 
 ```ts
@@ -103,6 +110,7 @@ const report = await runCitationAudit({
   style: 'ieee',
   venue: 'ieee',
   evidencePaths: ['./evidence'],
+  metadataCachePath: '.citekit-cache/metadata.json',
   metadataProviders: [provider]
 });
 ```
@@ -202,9 +210,12 @@ pnpm build
 The test suite covers:
 
 - BibTeX normalization
+- RIS normalization
 - Markdown and LaTeX claim extraction
 - fake DOI detection
 - metadata mismatch detection
 - supported, contradicted, and unverifiable claims
+- resolver caching
 - venue rule failures
 - offline CLI end-to-end reporting
+- proof-rich claim explanations
