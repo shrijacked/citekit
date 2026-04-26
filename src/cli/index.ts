@@ -7,11 +7,13 @@ import {
   FixtureMetadataProvider,
   loadReferences,
   loadVenueRulePack,
+  orderReferencesForVenue,
   renderBibliography,
   runCitationAudit
 } from '../index.js';
 import type { CitationAuditReport, MetadataProvider } from '../types.js';
 import { explainClaim, renderHtmlReport } from '../report/index.js';
+import { extractClaimsFromFile } from '../core/extractClaims.js';
 
 const program = new Command();
 
@@ -98,6 +100,10 @@ program
     'CSL style id, packaged style name, or local .csl path'
   )
   .option('--venue <venue>', 'Venue rule pack id')
+  .option(
+    '--manuscript <path>',
+    'Manuscript path used to render citation-order venues in first-citation order'
+  )
   .option('--out <path>', 'Write formatted bibliography to a file')
   .action(
     async (
@@ -105,16 +111,25 @@ program
       options: {
         style?: string;
         venue?: string;
+        manuscript?: string;
         out?: string;
       }
     ) => {
       const references = await loadReferences(bibliographyPath);
       const rulePack = await loadVenueRulePack(options.venue);
-      const bibliography = await renderBibliography(
+      const claims = options.manuscript
+        ? await extractClaimsFromFile(options.manuscript)
+        : [];
+      const orderedReferences = orderReferencesForVenue(
         references,
+        rulePack,
+        claims
+      );
+      const bibliography = await renderBibliography(
+        orderedReferences,
         options.style ?? rulePack?.cslStyle ?? 'ieee'
       );
-      const findings = checkFormatting(references, rulePack);
+      const findings = checkFormatting(orderedReferences, rulePack, claims);
       const output = bibliography.entries.join('\n\n') + '\n';
       await writeOrPrint(output, options.out);
 

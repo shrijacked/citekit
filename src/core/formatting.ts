@@ -135,20 +135,7 @@ function checkCitationOrder(
     return [];
   }
 
-  const firstSeen = new Map<string, number>();
-  for (const claim of claims) {
-    for (const key of claim.citationKeys) {
-      if (!firstSeen.has(key)) {
-        firstSeen.set(key, firstSeen.size);
-      }
-    }
-  }
-
-  const expected = [...references].sort(
-    (left, right) =>
-      (firstSeen.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
-      (firstSeen.get(right.id) ?? Number.MAX_SAFE_INTEGER)
-  );
+  const expected = orderReferencesForVenue(references, rulePack, claims);
 
   const actualIds = references.map((reference) => reference.id).join('|');
   const expectedIds = expected.map((reference) => reference.id).join('|');
@@ -173,11 +160,7 @@ function checkAlphabeticalOrder(
   references: ReferenceRecord[],
   rulePack: VenueRulePack
 ): FormattingFinding[] {
-  const expected = [...references].sort((left, right) =>
-    authorLastName(left.authors[0] ?? '').localeCompare(
-      authorLastName(right.authors[0] ?? '')
-    )
-  );
+  const expected = orderReferencesForVenue(references, rulePack);
   const actualIds = references.map((reference) => reference.id).join('|');
   const expectedIds = expected.map((reference) => reference.id).join('|');
 
@@ -195,4 +178,74 @@ function checkAlphabeticalOrder(
         .join(', ')}.`
     }
   ];
+}
+
+export function orderReferencesForVenue(
+  references: ReferenceRecord[],
+  rulePack: VenueRulePack | undefined,
+  claims: ClaimCitationLink[] = []
+): ReferenceRecord[] {
+  if (rulePack?.rules.referenceOrder === 'alphabetical') {
+    return references.map(withOriginalIndex).sort(compareAlphabetically).map(stripIndex);
+  }
+
+  if (rulePack?.rules.referenceOrder === 'citation_order' && claims.length > 0) {
+    const firstSeen = firstCitationIndexes(claims);
+    return references
+      .map(withOriginalIndex)
+      .sort((left, right) => {
+        const leftSeen = firstSeen.get(left.reference.id) ?? Number.MAX_SAFE_INTEGER;
+        const rightSeen = firstSeen.get(right.reference.id) ?? Number.MAX_SAFE_INTEGER;
+        return leftSeen - rightSeen || left.index - right.index;
+      })
+      .map(stripIndex);
+  }
+
+  return [...references];
+}
+
+function firstCitationIndexes(claims: ClaimCitationLink[]): Map<string, number> {
+  const firstSeen = new Map<string, number>();
+  for (const claim of claims) {
+    for (const key of claim.citationKeys) {
+      if (!firstSeen.has(key)) {
+        firstSeen.set(key, firstSeen.size);
+      }
+    }
+  }
+  return firstSeen;
+}
+
+function withOriginalIndex(
+  reference: ReferenceRecord,
+  index: number
+): { reference: ReferenceRecord; index: number } {
+  return { reference, index };
+}
+
+function stripIndex(item: { reference: ReferenceRecord }): ReferenceRecord {
+  return item.reference;
+}
+
+function compareAlphabetically(
+  left: { reference: ReferenceRecord; index: number },
+  right: { reference: ReferenceRecord; index: number }
+): number {
+  const leftReference = left.reference;
+  const rightReference = right.reference;
+  const authorCompare = authorLastName(leftReference.authors[0] ?? '').localeCompare(
+    authorLastName(rightReference.authors[0] ?? '')
+  );
+  if (authorCompare !== 0) {
+    return authorCompare;
+  }
+
+  const yearCompare = (leftReference.year ?? 0) - (rightReference.year ?? 0);
+  if (yearCompare !== 0) {
+    return yearCompare;
+  }
+
+  return (
+    leftReference.title.localeCompare(rightReference.title) || left.index - right.index
+  );
 }

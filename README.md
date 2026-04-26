@@ -87,8 +87,18 @@ unverifiable claims, or formatting failures.
 Renders a bibliography and applies venue rule checks.
 
 ```bash
-citekit format refs.bib --style nature --venue nature --out references.md
+citekit format refs.bib \
+  --style nature \
+  --venue nature \
+  --manuscript paper.tex \
+  --out references.md
 ```
+
+`format` applies venue-aware ordering before rendering. Author-year venues such as
+ACM SIGCONF, APA, NeurIPS, and ACL sort references alphabetically. Numeric venues
+such as IEEE, Nature, and Vancouver use first-citation order when `--manuscript` is
+provided; otherwise CiteKit keeps the input order because it cannot infer citation
+order from a bibliography alone.
 
 ### `citekit explain`
 

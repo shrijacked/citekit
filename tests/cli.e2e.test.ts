@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -128,6 +128,64 @@ describe('citekit CLI', () => {
     expect(firstClaim?.verdict).toBe('unverifiable');
     expect(firstClaim?.message).toContain(
       'without a valid retrieved evidence span'
+    );
+  });
+
+  it('formats numeric venue bibliographies in first-citation order', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-format-order-'));
+    const bibliography = join(dir, 'refs.bib');
+    const manuscript = join(dir, 'paper.md');
+    const out = join(dir, 'references.md');
+
+    await writeFile(
+      bibliography,
+      `@article{doe2021,
+  title = {Large Language Models Always Cite Accurately},
+  author = {Doe, Jane},
+  journal = {AI Reference Studies},
+  year = {2021},
+  doi = {10.1000/citekit.2}
+}
+
+@article{smith2020,
+  title = {Neural Citation Audits Improve Reference Accuracy},
+  author = {Smith, Ada},
+  journal = {Journal of Verifiable Research},
+  year = {2020},
+  doi = {10.1000/citekit.1}
+}
+`,
+      'utf8'
+    );
+    await writeFile(
+      manuscript,
+      'Neural citation audits improve reference accuracy [@smith2020].\n\nLarge language models always cite accurately [@doe2021].\n',
+      'utf8'
+    );
+
+    await execFileAsync(
+      'pnpm',
+      [
+        'exec',
+        'tsx',
+        'src/cli/index.ts',
+        'format',
+        bibliography,
+        '--style',
+        'ieee',
+        '--venue',
+        'ieee',
+        '--manuscript',
+        manuscript,
+        '--out',
+        out
+      ],
+      { cwd: resolve('.') }
+    );
+
+    const rendered = await readFile(out, 'utf8');
+    expect(rendered.indexOf('Neural Citation Audits')).toBeLessThan(
+      rendered.indexOf('Large Language Models')
     );
   });
 });
