@@ -18,27 +18,29 @@ export function extractClaims(
   manuscriptPath = '<memory>'
 ): ClaimCitationLink[] {
   const links: ClaimCitationLink[] = [];
-  const lines = manuscript.split(/\r?\n/);
+  const normalized = manuscript.replace(/\r\n/g, '\n');
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (!lineIncludesCitation(line)) {
+  for (const paragraph of splitParagraphs(normalized)) {
+    if (!textIncludesCitation(paragraph.text)) {
       continue;
     }
 
-    for (const sentence of splitSentences(line)) {
+    for (const sentence of splitSentences(paragraph.text)) {
       const citationKeys = extractCitationKeys(sentence);
       if (citationKeys.length === 0) {
         continue;
       }
 
+      const sentenceOffset = paragraph.text.indexOf(sentence);
       links.push({
         id: `C${links.length + 1}`,
         claim: cleanClaim(sentence),
         citationKeys,
         source: {
           path: manuscriptPath,
-          line: index + 1
+          line:
+            paragraph.startLine +
+            countNewlines(paragraph.text.slice(0, Math.max(0, sentenceOffset)))
         }
       });
     }
@@ -72,7 +74,7 @@ export function extractCitationKeys(value: string): string[] {
   return [...keys];
 }
 
-function lineIncludesCitation(line: string): boolean {
+function textIncludesCitation(line: string): boolean {
   MARKDOWN_CITATION.lastIndex = 0;
   LATEX_CITATION.lastIndex = 0;
   return MARKDOWN_CITATION.test(line) || LATEX_CITATION.test(line);
@@ -80,6 +82,7 @@ function lineIncludesCitation(line: string): boolean {
 
 function splitSentences(line: string): string[] {
   return line
+    .replace(/\n+/g, ' ')
     .split(/(?<=[.!?])\s+(?=[A-Z0-9\\[])/)
     .map(normalizeWhitespace)
     .filter(Boolean);
@@ -92,4 +95,44 @@ function cleanClaim(sentence: string): string {
       .replace(LATEX_CITATION, '')
       .replace(/\s+([,.;:!?])/g, '$1')
   );
+}
+
+function splitParagraphs(manuscript: string): Array<{
+  text: string;
+  startLine: number;
+}> {
+  const paragraphs: Array<{ text: string; startLine: number }> = [];
+  const blocks = manuscript.split(/(\n\s*\n)/);
+  let line = 1;
+
+  for (const block of blocks) {
+    if (!block) {
+      continue;
+    }
+
+    if (/^\n\s*\n$/.test(block)) {
+      line += countNewlines(block);
+      continue;
+    }
+
+    const text = block.trim();
+    if (text) {
+      const leadingNewlines = countLeadingNewlines(block);
+      paragraphs.push({
+        text,
+        startLine: line + leadingNewlines
+      });
+    }
+    line += countNewlines(block);
+  }
+
+  return paragraphs;
+}
+
+function countNewlines(value: string): number {
+  return value.match(/\n/g)?.length ?? 0;
+}
+
+function countLeadingNewlines(value: string): number {
+  return value.match(/^\n*/)?.[0].length ?? 0;
 }

@@ -19,4 +19,37 @@ describe('extractClaims', () => {
       citationKeys: ['ghost2022']
     });
   });
+
+  it('extracts citations that span multiple manuscript lines', () => {
+    const claims = extractClaims(
+      [
+        'Citation audits help authors',
+        'catch unsupported claims [@smith2020;',
+        '@doe2021].',
+        '',
+        'LaTeX multi-line citations work too \\citep{',
+        'ghost2022,smith2020',
+        '}.'
+      ].join('\n'),
+      'paper.md'
+    );
+
+    expect(claims).toHaveLength(2);
+    expect(claims[0]).toMatchObject({
+      claim: 'Citation audits help authors catch unsupported claims.',
+      citationKeys: ['smith2020', 'doe2021'],
+      source: {
+        path: 'paper.md',
+        line: 1
+      }
+    });
+    expect(claims[1]).toMatchObject({
+      claim: 'LaTeX multi-line citations work too.',
+      citationKeys: ['ghost2022', 'smith2020'],
+      source: {
+        path: 'paper.md',
+        line: 5
+      }
+    });
+  });
 });
