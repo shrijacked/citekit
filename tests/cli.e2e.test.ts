@@ -188,4 +188,44 @@ describe('citekit CLI', () => {
       rendered.indexOf('Large Language Models')
     );
   });
+
+  it('prints format failures to stderr before exiting non-zero', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-format-failure-'));
+    const bibliography = join(dir, 'refs.bib');
+    const out = join(dir, 'references.md');
+
+    await writeFile(
+      bibliography,
+      `@article{missing2024,
+  title = {Missing Required Metadata},
+  author = {Smith, Ada},
+  journal = {Journal of Verifiable Research}
+}
+`,
+      'utf8'
+    );
+
+    await expect(
+      execFileAsync(
+        'pnpm',
+        [
+          'exec',
+          'tsx',
+          'src/cli/index.ts',
+          'format',
+          bibliography,
+          '--style',
+          'ieee',
+          '--venue',
+          'ieee',
+          '--out',
+          out
+        ],
+        { cwd: resolve('.') }
+      )
+    ).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining('IEEE requires a DOI')
+    });
+  });
 });

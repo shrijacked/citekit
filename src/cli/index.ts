@@ -134,7 +134,11 @@ program
       await writeOrPrint(output, options.out);
 
       const failed = findings.some((finding) => finding.verdict === 'fail');
+      const failures = findings.filter((finding) => finding.verdict === 'fail');
       const warnings = findings.filter((finding) => finding.verdict === 'warning');
+      for (const failure of failures) {
+        console.error(`error: ${failure.message}`);
+      }
       for (const warning of warnings) {
         console.error(`warning: ${warning.message}`);
       }
