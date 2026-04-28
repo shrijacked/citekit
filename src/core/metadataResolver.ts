@@ -1,4 +1,5 @@
 import type {
+  AuditDiagnostic,
   MetadataMismatch,
   MetadataProvider,
   ReferenceRecord,
@@ -15,19 +16,42 @@ export async function resolveReferences(
   references: ReferenceRecord[],
   providers: MetadataProvider[]
 ): Promise<ResolvedReference[]> {
-  const resolved: ResolvedReference[] = [];
+  return (await resolveReferencesWithDiagnostics(references, providers)).references;
+}
 
+export async function resolveReferencesWithDiagnostics(
+  references: ReferenceRecord[],
+  providers: MetadataProvider[]
+): Promise<{ references: ResolvedReference[]; diagnostics: AuditDiagnostic[] }> {
+  const resolved: ResolvedReference[] = [];
+  const diagnostics: AuditDiagnostic[] = [];
   for (const reference of references) {
-    resolved.push(await resolveReference(reference, providers));
+    const result = await resolveReferenceWithDiagnostics(
+      reference,
+      providers,
+      diagnostics
+    );
+    resolved.push(result.reference);
   }
 
-  return resolved;
+  return {
+    references: resolved,
+    diagnostics
+  };
 }
 
 export async function resolveReference(
   reference: ReferenceRecord,
   providers: MetadataProvider[]
 ): Promise<ResolvedReference> {
+  return (await resolveReferenceWithDiagnostics(reference, providers)).reference;
+}
+
+export async function resolveReferenceWithDiagnostics(
+  reference: ReferenceRecord,
+  providers: MetadataProvider[],
+  diagnostics: AuditDiagnostic[] = []
+): Promise<{ reference: ResolvedReference; diagnostics: AuditDiagnostic[] }> {
   const candidates: Array<{
     provider: MetadataProvider;
     record: ReferenceRecord;
@@ -44,8 +68,8 @@ export async function resolveReference(
           score: scoreCandidate(reference, record)
         });
       }
-    } catch {
-      // Provider errors should not hide verifiable failures from other providers.
+    } catch (error) {
+      diagnostics.push(metadataProviderDiagnostic(diagnostics, reference, provider, error));
     }
   }
 
@@ -53,11 +77,14 @@ export async function resolveReference(
 
   if (candidates.length === 0 || candidates[0].score < 0.45) {
     return {
-      input: reference,
-      verdict: 'not_found',
-      confidence: 0,
-      mismatches: [],
-      evidence: []
+      reference: {
+        input: reference,
+        verdict: 'not_found',
+        confidence: 0,
+        mismatches: [],
+        evidence: []
+      },
+      diagnostics
     };
   }
 
@@ -67,13 +94,16 @@ export async function resolveReference(
     !sameDoi(reference, candidates[0].record)
   ) {
     return {
-      input: reference,
-      resolved: candidates[0].record,
-      verdict: 'ambiguous',
-      source: candidates[0].provider.name,
-      confidence: round(candidates[0].score),
-      mismatches: [],
-      evidence: []
+      reference: {
+        input: reference,
+        resolved: candidates[0].record,
+        verdict: 'ambiguous',
+        source: candidates[0].provider.name,
+        confidence: round(candidates[0].score),
+        mismatches: [],
+        evidence: []
+      },
+      diagnostics
     };
   }
 
@@ -81,13 +111,16 @@ export async function resolveReference(
   const mismatches = compareMetadata(reference, best.record);
 
   return {
-    input: reference,
-    resolved: best.record,
-    verdict: mismatches.length > 0 ? 'metadata_mismatch' : 'verified',
-    source: best.provider.name,
-    confidence: round(best.score),
-    mismatches,
-    evidence: []
+    reference: {
+      input: reference,
+      resolved: best.record,
+      verdict: mismatches.length > 0 ? 'metadata_mismatch' : 'verified',
+      source: best.provider.name,
+      confidence: round(best.score),
+      mismatches,
+      evidence: []
+    },
+    diagnostics
   };
 }
 
@@ -171,4 +204,22 @@ function sameDoi(left: ReferenceRecord, right: ReferenceRecord): boolean {
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function metadataProviderDiagnostic(
+  diagnostics: AuditDiagnostic[],
+  reference: ReferenceRecord,
+  provider: MetadataProvider,
+  error: unknown
+): AuditDiagnostic {
+  const detail = error instanceof Error ? error.message : String(error);
+  return {
+    id: `D${diagnostics.length + 1}`,
+    severity: 'warning',
+    category: 'metadata_provider',
+    code: 'provider_error',
+    referenceId: reference.id,
+    resolverSource: provider.name,
+    message: `${provider.name} metadata lookup failed for ${reference.id}: ${detail}`
+  };
 }

@@ -172,8 +172,9 @@ export type AuditFinding = {
 export type AuditDiagnostic = {
   id: string;
   severity: 'warning' | 'error';
-  category: 'remote_evidence';
+  category: 'remote_evidence' | 'metadata_provider';
   code:
+    | 'provider_error'
     | 'unsupported_protocol'
     | 'timeout'
     | 'http_error'

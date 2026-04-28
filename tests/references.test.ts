@@ -75,4 +75,35 @@ ER  -`,
       })
     ]);
   });
+
+  it('loads BibTeX macros, nested braces, escaped characters, and date fields', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-bibtex-edge-'));
+    const path = join(dir, 'refs.bib');
+    await writeFile(
+      path,
+      `@string{jvr = {Journal of Verifiable Research}}
+
+@article{smith2024,
+  title = {{Neural} Citation Audits \\& Reference {Integrity}},
+  author = {Smith, Ada and {CiteKit Team}},
+  journal = jvr,
+  date = {2024-05},
+  month = may,
+  doi = {https://doi.org/10.1000/CiteKit.4}
+}
+`,
+      'utf8'
+    );
+
+    const [record] = await loadReferences(path);
+
+    expect(record).toMatchObject({
+      id: 'smith2024',
+      title: 'Neural Citation Audits & Reference Integrity',
+      authors: ['Ada Smith', 'CiteKit Team'],
+      venue: 'Journal of Verifiable Research',
+      year: 2024,
+      doi: '10.1000/citekit.4'
+    });
+  });
 });

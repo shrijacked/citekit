@@ -32,6 +32,8 @@ flowchart TD
   `ReferenceRecord` objects.
 - Metadata resolution queries configured providers and compares DOI, title, year,
   and authors against the input reference.
+  Provider outages are reported as diagnostics while CiteKit continues trying the
+  remaining providers for the same reference.
 - Metadata cache wrapping can persist provider responses in JSON so repeated audits
   are deterministic and do not hit resolver APIs unnecessarily.
 - Evidence loading reads local evidence files, including PDFs through `pdf-parse`,
@@ -87,8 +89,8 @@ trusting the verifier blindly:
 - Claim findings include evidence span ids plus quoted evidence text, source type,
   path, and locator when available.
 - Formatting findings include the rule that failed and the suggested fix.
-- Diagnostics include non-fatal runtime problems such as failed or skipped remote
-  evidence fetches.
+- Diagnostics include non-fatal runtime problems such as metadata provider outages
+  and failed or skipped remote evidence fetches.
 
 ## External Classifier Boundary
 

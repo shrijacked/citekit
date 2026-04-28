@@ -134,6 +134,56 @@ describe('loadEvidenceStore', () => {
     });
   });
 
+  it('extracts local PDF evidence text', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-pdf-evidence-'));
+    const evidencePath = join(dir, 'smith2020.pdf');
+    await writeFile(
+      evidencePath,
+      minimalPdf(
+        'Neural Citation Audits Improve Reference Accuracy. PDF evidence text confirms citation audits improve reference accuracy.'
+      )
+    );
+
+    const spans = await loadEvidenceStore([evidencePath], [reference]);
+
+    expect(spans).toEqual([
+      expect.objectContaining({
+        referenceId: 'smith2020',
+        source: 'user_file',
+        path: evidencePath,
+        text: expect.stringContaining('PDF evidence text confirms')
+      })
+    ]);
+  });
+
+  it('strips XML and TEI markup from local evidence', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'citekit-tei-evidence-'));
+    const evidencePath = join(dir, 'smith2020.tei');
+    await writeFile(
+      evidencePath,
+      `<?xml version="1.0"?>
+<TEI>
+  <text>
+    <body>
+      <p>Neural Citation Audits Improve Reference Accuracy.</p>
+      <p>Citation audits check claims against source text.</p>
+    </body>
+  </text>
+</TEI>`,
+      'utf8'
+    );
+
+    const spans = await loadEvidenceStore([evidencePath], [reference]);
+
+    expect(spans[0]?.text).toContain(
+      'Neural Citation Audits Improve Reference Accuracy'
+    );
+    expect(spans[0]?.text).toContain(
+      'Citation audits check claims against source text'
+    );
+    expect(spans[0]?.text).not.toContain('<p>');
+  });
+
   it('aborts remote evidence fetches after the configured timeout', async () => {
     const resolved: ResolvedReference = {
       input: reference,
@@ -279,3 +329,32 @@ describe('loadEvidenceStore', () => {
     );
   });
 });
+
+function minimalPdf(text: string): Uint8Array {
+  const stream = `BT /F1 12 Tf 72 720 Td (${escapePdfText(text)}) Tj ET`;
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n',
+    `5 0 obj\n<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream\nendobj\n`
+  ];
+  let output = '%PDF-1.4\n';
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(output));
+    output += object;
+  }
+  const xrefOffset = Buffer.byteLength(output);
+  output += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  output += offsets
+    .slice(1)
+    .map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`)
+    .join('');
+  output += `trailer\n<< /Root 1 0 R /Size ${objects.length + 1} >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(output, 'utf8');
+}
+
+function escapePdfText(text: string): string {
+  return text.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}

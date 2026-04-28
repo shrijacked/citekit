@@ -140,4 +140,34 @@ describe('runCitationAudit', () => {
       })
     ]);
   });
+
+  it('surfaces metadata provider outages as report diagnostics', async () => {
+    const report = await runCitationAudit({
+      manuscriptPath: resolve(fixtureDir, 'paper.md'),
+      bibliographyPath: resolve(fixtureDir, 'refs.bib'),
+      venue: 'ieee',
+      style: 'ieee',
+      metadataProviders: [
+        {
+          name: 'crossref',
+          async resolve() {
+            throw new Error('resolver unavailable');
+          }
+        }
+      ]
+    });
+
+    expect(report.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: 'metadata_provider',
+          code: 'provider_error',
+          referenceId: 'smith2020',
+          resolverSource: 'crossref',
+          severity: 'warning',
+          message: expect.stringContaining('resolver unavailable')
+        })
+      ])
+    );
+  });
 });

@@ -6,7 +6,7 @@ import type {
   ReferenceRecord,
   ResolvedReference
 } from '../types.js';
-import { normalizeTitle, slugify } from './text.js';
+import { normalizeTitle, normalizeWhitespace, slugify } from './text.js';
 
 const DEFAULT_REMOTE_TIMEOUT_MS = 10_000;
 const DEFAULT_REMOTE_MAX_BYTES = 5 * 1024 * 1024;
@@ -229,18 +229,19 @@ async function readEvidenceText(path: string): Promise<string> {
   const ext = extname(path).toLowerCase();
 
   if (ext === '.pdf') {
+    const buffer = await readFile(path);
     try {
       const pdfParseModule = (await import('pdf-parse')) as {
         default?: (buffer: Buffer) => Promise<{ text: string }>;
       };
       const parsePdf = pdfParseModule.default;
       if (!parsePdf) {
-        return '';
+        return extractPlainPdfText(buffer);
       }
-      const parsed = await parsePdf(await readFile(path));
+      const parsed = await parsePdf(buffer);
       return parsed.text;
     } catch {
-      return '';
+      return extractPlainPdfText(buffer);
     }
   }
 
@@ -334,12 +335,12 @@ async function remoteResponseText(
       };
       const parsePdf = pdfParseModule.default;
       if (!parsePdf) {
-        return '';
+        return extractPlainPdfText(bytes);
       }
       const parsed = await parsePdf(Buffer.from(bytes));
       return parsed.text;
     } catch {
-      return '';
+      return extractPlainPdfText(bytes);
     }
   }
 
@@ -501,6 +502,49 @@ function remoteDiagnostic({
     url,
     message
   };
+}
+
+function extractPlainPdfText(bytes: Uint8Array): string {
+  const raw = Buffer.from(bytes).toString('latin1');
+  const texts: string[] = [];
+  const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+
+  for (const streamMatch of raw.matchAll(streamPattern)) {
+    const stream = streamMatch[1];
+    for (const textMatch of stream.matchAll(/\((?:\\.|[^\\)])*\)\s*Tj/g)) {
+      texts.push(decodePdfLiteral(textMatch[0].replace(/\s*Tj$/, '')));
+    }
+    for (const arrayMatch of stream.matchAll(/\[((?:\s*\((?:\\.|[^\\)])*\)\s*)+)\]\s*TJ/g)) {
+      for (const textMatch of arrayMatch[1].matchAll(/\((?:\\.|[^\\)])*\)/g)) {
+        texts.push(decodePdfLiteral(textMatch[0]));
+      }
+    }
+  }
+
+  return normalizeWhitespace(texts.join(' '));
+}
+
+function decodePdfLiteral(value: string): string {
+  const inner = value.slice(1, -1);
+  return inner.replace(
+    /\\([nrtbf()\\]|[0-7]{1,3})/g,
+    (_match, escaped: string) => {
+      const escapes: Record<string, string> = {
+        n: '\n',
+        r: '\r',
+        t: '\t',
+        b: '\b',
+        f: '\f',
+        '(': '(',
+        ')': ')',
+        '\\': '\\'
+      };
+      if (/^[0-7]+$/.test(escaped)) {
+        return String.fromCharCode(Number.parseInt(escaped, 8));
+      }
+      return escapes[escaped] ?? escaped;
+    }
+  );
 }
 
 function recordRemoteDiagnostic({

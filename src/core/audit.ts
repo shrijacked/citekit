@@ -1,5 +1,6 @@
 import type {
   AuditFinding,
+  AuditDiagnostic,
   CitationAuditInput,
   CitationAuditReport,
   ClaimVerification,
@@ -18,7 +19,7 @@ import {
   loadRemoteEvidenceWithDiagnostics,
   metadataEvidenceFromResolved
 } from './evidenceStore.js';
-import { resolveReferences } from './metadataResolver.js';
+import { resolveReferencesWithDiagnostics } from './metadataResolver.js';
 import { withMetadataCache } from './metadataCache.js';
 import { verifyClaimsWithClassifier } from './claimVerifier.js';
 import { checkFormatting, loadVenueRulePack } from './formatting.js';
@@ -35,7 +36,8 @@ export async function runCitationAudit(
   );
   const rulePack = await loadVenueRulePack(input.venue, input.rulePacks);
   const style = input.style ?? rulePack?.cslStyle ?? 'ieee';
-  const resolved = await resolveReferences(references, providers);
+  const metadataResult = await resolveReferencesWithDiagnostics(references, providers);
+  const resolved = metadataResult.references;
   const userEvidence = await loadEvidenceStore(input.evidencePaths ?? [], references);
   const remoteEvidenceResult = input.fetchRemoteEvidence
     ? await loadRemoteEvidenceWithDiagnostics(resolved, {
@@ -60,6 +62,11 @@ export async function runCitationAudit(
     ...formattingFindings(formatting)
   ];
   const exitCode = findings.some((finding) => finding.severity === 'error') ? 1 : 0;
+
+  const diagnostics = reindexDiagnostics([
+    ...metadataResult.diagnostics,
+    ...remoteEvidenceResult.diagnostics
+  ]);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -102,7 +109,7 @@ export async function runCitationAudit(
     formatting,
     bibliography,
     findings,
-    diagnostics: remoteEvidenceResult.diagnostics
+    diagnostics
   };
 }
 
@@ -221,4 +228,11 @@ function formattingFindings(formatting: FormattingFinding[]): AuditFinding[] {
 
 function proofSpans(claim: ClaimVerification): EvidenceSpan[] {
   return [...claim.supportingSpans, ...claim.contradictedBy];
+}
+
+function reindexDiagnostics(diagnostics: AuditDiagnostic[]): AuditDiagnostic[] {
+  return diagnostics.map((diagnostic, index) => ({
+    ...diagnostic,
+    id: `D${index + 1}`
+  }));
 }

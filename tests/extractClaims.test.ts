@@ -67,4 +67,29 @@ describe('extractClaims', () => {
     expect(claims[0].source.line).toBe(2);
     expect(claims[1].source.line).toBe(3);
   });
+
+  it('extracts narrative Pandoc citations and complex LaTeX citation forms', () => {
+    const claims = extractClaims(
+      [
+        'According to @smith2020, citation audits improve reference accuracy.',
+        'Complex Pandoc forms work too [-@smith2020, pp. 12-14; see also @doe2021].',
+        'LaTeX textual citations work too \\citet[see][pp.~12--14]{smith2020,doe2021}.'
+      ].join('\n'),
+      'paper.md'
+    );
+
+    expect(claims).toHaveLength(3);
+    expect(claims[0]).toMatchObject({
+      claim: 'According to, citation audits improve reference accuracy.',
+      citationKeys: ['smith2020']
+    });
+    expect(claims[1]).toMatchObject({
+      claim: 'Complex Pandoc forms work too.',
+      citationKeys: ['smith2020', 'doe2021']
+    });
+    expect(claims[2]).toMatchObject({
+      claim: 'LaTeX textual citations work too.',
+      citationKeys: ['smith2020', 'doe2021']
+    });
+  });
 });

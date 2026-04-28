@@ -122,4 +122,34 @@ describe('verifyClaim', () => {
     expect(result.verdict).toBe('unverifiable');
     expect(result.message).toContain('without a valid retrieved evidence span');
   });
+
+  it('does not treat unrelated shared citation terms as weak support', () => {
+    const result = verifyClaim(
+      claim('Citation audits increase manuscript length'),
+      [reference],
+      [span('Citation audits improve reference accuracy by catching unsupported claims.')]
+    );
+
+    expect(result.verdict).toBe('unverifiable');
+  });
+
+  it('keeps paraphrase overlap below strict support', () => {
+    const result = verifyClaim(
+      claim('Citation audits reduce reference errors'),
+      [reference],
+      [span('Citation audits improve reference accuracy by catching wrong citations.')]
+    );
+
+    expect(result.verdict).toBe('weak_support');
+  });
+
+  it('marks close negated evidence as contradicted', () => {
+    const result = verifyClaim(
+      claim('Citation audits improve reference accuracy'),
+      [reference],
+      [span('Citation audits do not improve reference accuracy in manuscripts.')]
+    );
+
+    expect(result.verdict).toBe('contradicted');
+  });
 });

@@ -179,6 +179,9 @@ reference, URL, error code, and message. Set `strictRemoteEvidence: true` in the
 library API if remote evidence failures should abort the audit instead of
 producing warnings.
 
+Metadata provider outages are also reported through `report.diagnostics`; they do
+not hide successful matches from other configured providers.
+
 Public types include:
 
 - `CitationAuditInput`
