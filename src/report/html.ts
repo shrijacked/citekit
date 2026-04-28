@@ -71,6 +71,18 @@ export function renderHtmlReport(report: CitationAuditReport): string {
   const bibliography = report.bibliography.entries
     .map((entry) => `<li>${escapeHtml(entry)}</li>`)
     .join('\n');
+  const diagnosticRows = (report.diagnostics ?? [])
+    .map(
+      (diagnostic) => `<tr class="${escapeHtml(diagnostic.severity)}">
+        <td>${escapeHtml(diagnostic.severity)}</td>
+        <td>${escapeHtml(diagnostic.category)}</td>
+        <td>${escapeHtml(diagnostic.code)}</td>
+        <td>${targetLink(diagnostic.referenceId ?? '')}</td>
+        <td>${escapeHtml(diagnostic.url ?? '')}</td>
+        <td>${escapeHtml(diagnostic.message)}</td>
+      </tr>`
+    )
+    .join('\n');
 
   return `<!doctype html>
 <html lang="en">
@@ -150,6 +162,21 @@ export function renderHtmlReport(report: CitationAuditReport): string {
       </tr>
     </thead>
     <tbody>${referenceRows || '<tr><td colspan="6">No references.</td></tr>'}</tbody>
+  </table>
+
+  <h2>Diagnostics</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Severity</th>
+        <th>Category</th>
+        <th>Code</th>
+        <th>Reference</th>
+        <th>URL</th>
+        <th>Message</th>
+      </tr>
+    </thead>
+    <tbody>${diagnosticRows || '<tr><td colspan="6">No diagnostics.</td></tr>'}</tbody>
   </table>
 
   <h2>Claim Proofs</h2>

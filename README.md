@@ -167,10 +167,17 @@ const report = await runCitationAudit({
   venue: 'ieee',
   evidencePaths: ['./evidence'],
   fetchRemoteEvidence: true,
+  remoteEvidenceTimeoutMs: 10000,
+  remoteEvidenceMaxBytes: 5 * 1024 * 1024,
   metadataCachePath: '.citekit-cache/metadata.json',
   metadataProviders: [provider]
 });
 ```
+
+When remote evidence cannot be fetched, `report.diagnostics` records the
+reference, URL, error code, and message. Set `strictRemoteEvidence: true` in the
+library API if remote evidence failures should abort the audit instead of
+producing warnings.
 
 Public types include:
 
@@ -193,6 +200,8 @@ CiteKit is strict by default.
 - Remote evidence fetching is off by default. When enabled, CiteKit only uses URLs
   exposed by resolver metadata and still requires quoted retrieved spans in proof.
   Direct content and PDF URLs are preferred over landing pages when both are present.
+  Remote fetches have timeout and byte limits, ignore non-HTTP protocols, and
+  report diagnostics instead of silently disappearing.
 - Optional AI classifiers can only classify retrieved evidence spans. If a classifier
   returns an evidence-based verdict without retrieved span ids, CiteKit downgrades
   the claim to `unverifiable`.

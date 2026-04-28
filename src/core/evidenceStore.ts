@@ -1,7 +1,15 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
-import type { EvidenceSpan, ReferenceRecord, ResolvedReference } from '../types.js';
+import type {
+  AuditDiagnostic,
+  EvidenceSpan,
+  ReferenceRecord,
+  ResolvedReference
+} from '../types.js';
 import { normalizeTitle, slugify } from './text.js';
+
+const DEFAULT_REMOTE_TIMEOUT_MS = 10_000;
+const DEFAULT_REMOTE_MAX_BYTES = 5 * 1024 * 1024;
 
 export async function loadEvidenceStore(
   evidencePaths: string[],
@@ -40,27 +48,84 @@ export async function loadRemoteEvidenceFromResolved(
   references: ResolvedReference[],
   fetchImpl: typeof fetch = fetch
 ): Promise<EvidenceSpan[]> {
+  return (await loadRemoteEvidenceWithDiagnostics(references, { fetchImpl })).spans;
+}
+
+export type RemoteEvidenceLoadOptions = {
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+  maxBytes?: number;
+  strict?: boolean;
+};
+
+export type RemoteEvidenceLoadResult = {
+  spans: EvidenceSpan[];
+  diagnostics: AuditDiagnostic[];
+};
+
+export async function loadRemoteEvidenceWithDiagnostics(
+  references: ResolvedReference[],
+  options: RemoteEvidenceLoadOptions = {}
+): Promise<RemoteEvidenceLoadResult> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_REMOTE_TIMEOUT_MS;
+  const maxBytes = options.maxBytes ?? DEFAULT_REMOTE_MAX_BYTES;
   const spans: EvidenceSpan[] = [];
+  const diagnostics: AuditDiagnostic[] = [];
 
   for (const reference of references) {
-    const url = firstRemoteEvidenceUrl(reference);
+    const { url, unsupportedUrl } = firstRemoteEvidenceUrl(reference);
     if (!url) {
+      if (unsupportedUrl) {
+        recordRemoteDiagnostic({
+          diagnostics,
+          code: 'unsupported_protocol',
+          reference,
+          url: unsupportedUrl,
+          message: `Remote evidence URL uses an unsupported protocol: ${unsupportedUrl}`,
+          strict: options.strict
+        });
+      }
       continue;
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, timeoutMs);
+
     try {
       const response = await fetchImpl(url, {
+        signal: controller.signal,
         headers: {
           Accept:
             'text/plain, text/xml, application/xml, application/pdf, text/html;q=0.8, */*;q=0.1'
         }
       });
       if (!response.ok) {
+        recordRemoteDiagnostic({
+          diagnostics,
+          code: 'http_error',
+          reference,
+          url,
+          message: `Remote evidence fetch failed with HTTP ${response.status}${
+            response.statusText ? ` ${response.statusText}` : ''
+          }.`,
+          strict: options.strict
+        });
         continue;
       }
       const contentType = response.headers.get('content-type') ?? '';
-      const text = await remoteResponseText(response, contentType);
+      const text = await remoteResponseText(response, contentType, maxBytes);
       if (!text.trim()) {
+        recordRemoteDiagnostic({
+          diagnostics,
+          code: 'empty_response',
+          reference,
+          url,
+          message: 'Remote evidence response did not contain extractable text.',
+          strict: options.strict
+        });
         continue;
       }
       spans.push(
@@ -73,12 +138,25 @@ export async function loadRemoteEvidenceFromResolved(
           idPrefix: 'R'
         })
       );
-    } catch {
-      // Remote evidence fetches are best-effort. Metadata and local evidence still count.
+    } catch (error) {
+      if (error instanceof RemoteEvidenceDiagnosticError) {
+        throw error;
+      }
+      const code = remoteErrorCode(error, controller.signal);
+      recordRemoteDiagnostic({
+        diagnostics,
+        code,
+        reference,
+        url,
+        message: remoteErrorMessage(code, url, error, timeoutMs, maxBytes),
+        strict: options.strict
+      });
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
-  return spans;
+  return { spans, diagnostics };
 }
 
 export function metadataEvidenceFromResolved(
@@ -245,8 +323,10 @@ function chunkEvidence(
 
 async function remoteResponseText(
   response: Response,
-  contentType: string
+  contentType: string,
+  maxBytes: number
 ): Promise<string> {
+  const bytes = await remoteResponseBytes(response, maxBytes);
   if (contentType.includes('pdf')) {
     try {
       const pdfParseModule = (await import('pdf-parse')) as {
@@ -256,20 +336,78 @@ async function remoteResponseText(
       if (!parsePdf) {
         return '';
       }
-      const parsed = await parsePdf(Buffer.from(await response.arrayBuffer()));
+      const parsed = await parsePdf(Buffer.from(bytes));
       return parsed.text;
     } catch {
       return '';
     }
   }
 
-  const text = await response.text();
+  const text = new TextDecoder().decode(bytes);
   return contentType.includes('xml') || contentType.includes('html')
     ? stripXml(text)
     : text;
 }
 
-function firstRemoteEvidenceUrl(reference: ResolvedReference): string | undefined {
+async function remoteResponseBytes(
+  response: Response,
+  maxBytes: number
+): Promise<Uint8Array> {
+  const contentLength = response.headers.get('content-length');
+  if (contentLength && Number(contentLength) > maxBytes) {
+    throw new RemoteEvidenceReadError(
+      `Remote evidence response is larger than ${maxBytes} bytes.`,
+      'response_too_large'
+    );
+  }
+
+  if (!response.body) {
+    const buffer = new Uint8Array(await response.arrayBuffer());
+    if (buffer.byteLength > maxBytes) {
+      throw new RemoteEvidenceReadError(
+        `Remote evidence response is larger than ${maxBytes} bytes.`,
+        'response_too_large'
+      );
+    }
+    return buffer;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    if (!value) {
+      continue;
+    }
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new RemoteEvidenceReadError(
+        `Remote evidence response is larger than ${maxBytes} bytes.`,
+        'response_too_large'
+      );
+    }
+    chunks.push(value);
+  }
+
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
+}
+
+function firstRemoteEvidenceUrl(reference: ResolvedReference): {
+  url?: string;
+  unsupportedUrl?: string;
+} {
   const raw = reference.resolved?.raw ?? reference.input.raw ?? {};
   const primaryLocation = remoteLocation(raw.primary_location);
   const bestOaLocation = remoteLocation(raw.best_oa_location);
@@ -290,10 +428,108 @@ function firstRemoteEvidenceUrl(reference: ResolvedReference): string | undefine
     ...locations.map((location) => location.landing_page_url)
   ];
 
-  return candidates.find(
-    (candidate): candidate is string =>
-      typeof candidate === 'string' && /^https?:\/\//i.test(candidate)
+  const strings = candidates.filter(
+    (candidate): candidate is string => typeof candidate === 'string'
   );
+  return {
+    url: strings.find((candidate) => /^https?:\/\//i.test(candidate)),
+    unsupportedUrl: strings.find((candidate) => /^[a-z][a-z0-9+.-]*:/i.test(candidate))
+  };
+}
+
+class RemoteEvidenceReadError extends Error {
+  constructor(
+    message: string,
+    readonly code: AuditDiagnostic['code']
+  ) {
+    super(message);
+  }
+}
+
+class RemoteEvidenceDiagnosticError extends Error {}
+
+function remoteErrorCode(
+  error: unknown,
+  signal: AbortSignal
+): AuditDiagnostic['code'] {
+  if (error instanceof RemoteEvidenceReadError) {
+    return error.code;
+  }
+  if (signal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
+    return 'timeout';
+  }
+  return 'fetch_error';
+}
+
+function remoteErrorMessage(
+  code: AuditDiagnostic['code'],
+  url: string,
+  error: unknown,
+  timeoutMs: number,
+  maxBytes: number
+): string {
+  if (code === 'timeout') {
+    return `Remote evidence fetch timed out after ${timeoutMs}ms: ${url}`;
+  }
+  if (code === 'response_too_large') {
+    return `Remote evidence response exceeded ${maxBytes} bytes: ${url}`;
+  }
+  const detail = error instanceof Error ? error.message : String(error);
+  return `Remote evidence fetch failed for ${url}: ${detail}`;
+}
+
+function remoteDiagnostic({
+  diagnostics,
+  code,
+  reference,
+  url,
+  message
+}: {
+  diagnostics: AuditDiagnostic[];
+  code: AuditDiagnostic['code'];
+  reference: ResolvedReference;
+  url: string;
+  message: string;
+}): AuditDiagnostic {
+  return {
+    id: `D${diagnostics.length + 1}`,
+    severity: 'warning',
+    category: 'remote_evidence',
+    code,
+    referenceId: reference.input.id,
+    resolverSource: reference.source,
+    url,
+    message
+  };
+}
+
+function recordRemoteDiagnostic({
+  diagnostics,
+  code,
+  reference,
+  url,
+  message,
+  strict
+}: {
+  diagnostics: AuditDiagnostic[];
+  code: AuditDiagnostic['code'];
+  reference: ResolvedReference;
+  url: string;
+  message: string;
+  strict?: boolean;
+}): AuditDiagnostic {
+  const diagnostic = remoteDiagnostic({
+    diagnostics,
+    code,
+    reference,
+    url,
+    message
+  });
+  diagnostics.push(diagnostic);
+  if (strict) {
+    throw new RemoteEvidenceDiagnosticError(diagnostic.message);
+  }
+  return diagnostic;
 }
 
 type RemoteLocation = {

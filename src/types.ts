@@ -27,6 +27,9 @@ export type CitationAuditInput = {
   metadataCachePath?: string;
   fetchRemoteEvidence?: boolean;
   remoteEvidenceFetch?: typeof fetch;
+  remoteEvidenceTimeoutMs?: number;
+  remoteEvidenceMaxBytes?: number;
+  strictRemoteEvidence?: boolean;
   rulePacks?: VenueRulePack[];
   claimClassifier?: ClaimEvidenceClassifier;
 };
@@ -166,6 +169,24 @@ export type AuditFinding = {
   suggestedFix?: string;
 };
 
+export type AuditDiagnostic = {
+  id: string;
+  severity: 'warning' | 'error';
+  category: 'remote_evidence';
+  code:
+    | 'unsupported_protocol'
+    | 'timeout'
+    | 'http_error'
+    | 'response_too_large'
+    | 'empty_response'
+    | 'fetch_error'
+    | 'parse_error';
+  message: string;
+  referenceId?: string;
+  resolverSource?: ResolverSource;
+  url?: string;
+};
+
 export type CitationAuditReport = {
   generatedAt: string;
   summary: {
@@ -185,4 +206,5 @@ export type CitationAuditReport = {
   formatting: FormattingFinding[];
   bibliography: RenderedBibliography;
   findings: AuditFinding[];
+  diagnostics?: AuditDiagnostic[];
 };

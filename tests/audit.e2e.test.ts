@@ -97,4 +97,47 @@ describe('runCitationAudit', () => {
       ]
     });
   });
+
+  it('surfaces remote evidence fetch failures as report diagnostics', async () => {
+    const report = await runCitationAudit({
+      manuscriptPath: resolve(fixtureDir, 'paper.md'),
+      bibliographyPath: resolve(fixtureDir, 'refs.bib'),
+      venue: 'ieee',
+      style: 'ieee',
+      metadataProviders: [
+        {
+          name: 'openalex',
+          async resolve(reference) {
+            if (reference.id !== 'smith2020') {
+              return [];
+            }
+            return [
+              {
+                ...reference,
+                raw: {
+                  content_url: 'https://content.openalex.org/works/missing'
+                }
+              }
+            ];
+          }
+        }
+      ],
+      fetchRemoteEvidence: true,
+      remoteEvidenceFetch: (async () =>
+        new Response('not available', {
+          status: 503,
+          statusText: 'Service Unavailable'
+        })) as typeof fetch
+    });
+
+    expect(report.diagnostics).toEqual([
+      expect.objectContaining({
+        category: 'remote_evidence',
+        code: 'http_error',
+        referenceId: 'smith2020',
+        severity: 'warning',
+        url: 'https://content.openalex.org/works/missing'
+      })
+    ]);
+  });
 });

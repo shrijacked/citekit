@@ -100,6 +100,19 @@ describe('renderHtmlReport', () => {
           claimId: 'C1',
           message: 'Available evidence appears to contradict the cited claim.'
         }
+      ],
+      diagnostics: [
+        {
+          id: 'D1',
+          severity: 'warning',
+          category: 'remote_evidence',
+          code: 'timeout',
+          referenceId: 'smith2020',
+          resolverSource: 'openalex',
+          url: 'https://content.openalex.org/works/slow',
+          message:
+            'Remote evidence fetch timed out after 10000ms: https://content.openalex.org/works/slow'
+        }
       ]
     };
 
@@ -109,5 +122,8 @@ describe('renderHtmlReport', () => {
     expect(html).toContain('<h2>References</h2>');
     expect(html).toContain('paragraph 1, sentence window 1');
     expect(html).toContain('<a href="#C1">C1</a>');
+    expect(html).toContain('<h2>Diagnostics</h2>');
+    expect(html).toContain('remote_evidence');
+    expect(html).toContain('https://content.openalex.org/works/slow');
   });
 });

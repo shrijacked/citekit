@@ -41,6 +41,9 @@ flowchart TD
   keeps URL locators in the proof object.
   OpenAlex `content_url`, `best_oa_location.pdf_url`, `primary_location.pdf_url`,
   and `locations[].pdf_url` are preferred before landing-page URLs.
+  Fetches use `AbortController` timeouts, max-byte guards, and HTTP/HTTPS-only URL
+  filtering. Failures become report diagnostics unless strict remote evidence is
+  enabled by library callers.
 - Claim verification only judges retrieved spans. It does not search the web during
   claim classification.
 - Optional classifier commands receive only the claim, cited references, and retrieved
@@ -84,6 +87,8 @@ trusting the verifier blindly:
 - Claim findings include evidence span ids plus quoted evidence text, source type,
   path, and locator when available.
 - Formatting findings include the rule that failed and the suggested fix.
+- Diagnostics include non-fatal runtime problems such as failed or skipped remote
+  evidence fetches.
 
 ## External Classifier Boundary
 

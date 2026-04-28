@@ -15,7 +15,7 @@ import { extractClaimsFromFile } from './extractClaims.js';
 import { loadReferences } from './references.js';
 import {
   loadEvidenceStore,
-  loadRemoteEvidenceFromResolved,
+  loadRemoteEvidenceWithDiagnostics,
   metadataEvidenceFromResolved
 } from './evidenceStore.js';
 import { resolveReferences } from './metadataResolver.js';
@@ -37,17 +37,19 @@ export async function runCitationAudit(
   const style = input.style ?? rulePack?.cslStyle ?? 'ieee';
   const resolved = await resolveReferences(references, providers);
   const userEvidence = await loadEvidenceStore(input.evidencePaths ?? [], references);
-  const remoteEvidence = input.fetchRemoteEvidence
-    ? await loadRemoteEvidenceFromResolved(
-        resolved,
-        input.remoteEvidenceFetch ?? fetch
-      )
-    : [];
+  const remoteEvidenceResult = input.fetchRemoteEvidence
+    ? await loadRemoteEvidenceWithDiagnostics(resolved, {
+        fetchImpl: input.remoteEvidenceFetch ?? fetch,
+        timeoutMs: input.remoteEvidenceTimeoutMs,
+        maxBytes: input.remoteEvidenceMaxBytes,
+        strict: input.strictRemoteEvidence
+      })
+    : { spans: [], diagnostics: [] };
   const metadataEvidence = metadataEvidenceFromResolved(resolved);
   const claimResults = await verifyClaimsWithClassifier(
     claims,
     resolved,
-    [...userEvidence, ...remoteEvidence, ...metadataEvidence],
+    [...userEvidence, ...remoteEvidenceResult.spans, ...metadataEvidence],
     input.claimClassifier
   );
   const formatting = checkFormatting(references, rulePack, claims);
@@ -99,7 +101,8 @@ export async function runCitationAudit(
     claims: claimResults,
     formatting,
     bibliography,
-    findings
+    findings,
+    diagnostics: remoteEvidenceResult.diagnostics
   };
 }
 
